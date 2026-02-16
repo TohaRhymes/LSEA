@@ -55,9 +55,14 @@ def get_overlapping_features(path_to_bed: str,
     """
     feature2intervals = defaultdict(list)  # Gene -> interval id
     try:
-        ret = subprocess.call(
-            f"bedtools intersect -a \"{path_to_bed}\" -b \"{path_to_gene_file}\" -wo | perl -p -e 's/\r//g' > \"{intersect_file}\"",
-            shell=True)   # todo (??) сделать пресорт sort -k1,1 -k2,2n и -sorted
+        with open(intersect_file, 'w') as outf:
+            bedtools_proc = subprocess.Popen(
+                ['bedtools', 'intersect', '-a', path_to_bed, '-b', path_to_gene_file, '-wo'],
+                stdout=subprocess.PIPE)
+            # Strip \r characters (replaces perl -p -e 's/\r//g')
+            for line in bedtools_proc.stdout:
+                outf.write(line.decode().replace('\r', ''))
+            ret = bedtools_proc.wait()
         if ret != 0:
             raise RuntimeError(f"BEDTools intersect failed with exit code {ret}")
         with open(intersect_file, 'r', newline='') as inter:  # The results of clumping (SNPs sets)

@@ -52,7 +52,8 @@ def create_universe(snp2chrom_pos: Dict[str, Tuple],
                 bed_row = [chrom, start, end, cur_id]
                 bed_writer.writerow(bed_row)
         log_message("Sorting Universe...")
-        ret = subprocess.call(f"sort -k1,1 -k2,2n {tmp_file} > {universe_out}", shell=True)
+        with open(universe_out, 'w') as outf:
+            ret = subprocess.call(['sort', '-k1,1', '-k2,2n', tmp_file], stdout=outf)
         if ret != 0:
             raise RuntimeError(f"Sorting failed with exit code {ret}")
     except Exception as e:
