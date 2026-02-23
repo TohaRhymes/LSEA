@@ -59,7 +59,7 @@ def run_plink_clumping(plink_path: str,
     # as illustrated below. This is a greedy algorithm and so each SNP will only appear in a single clump, if at all.
     plink_log_path = os.path.join(out_name, "PLINK_clumping.log")
     with open(plink_log_path, 'w') as plink_log:
-        subprocess.call(
+        ret = subprocess.call(
             [os.path.join(plink_path, "plink"),
              '--bfile', bfile_path,
              '--clump', tsv_plink,
@@ -73,6 +73,8 @@ def run_plink_clumping(plink_path: str,
              '--allow-no-sex',
              '--allow-extra-chr'],
             stdout=subprocess.DEVNULL, stderr=plink_log)
+    if ret != 0:
+        log_message(f"PLINK clumping failed with exit code {ret}. Check log: {plink_log_path}", msg_type="WARN")
     return out_plink + ".clumped"
 
 
