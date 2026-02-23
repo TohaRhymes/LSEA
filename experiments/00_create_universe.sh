@@ -41,6 +41,7 @@ awk -F'\t' 'NR>=6 && $3=="gene"' "${GTF}" | \
 # --- Run universe generator ---
 python3 "${LSEA_DIR}/universe_generator.py" \
     --variants "${VARIANTS}" \
+    --variants_colnames chr pos rsid \
     --features "${BED}" "${GMT}" \
     --interval "${INTERVAL}" \
     --out_json "${UNIVERSE}"

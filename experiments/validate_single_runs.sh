@@ -130,6 +130,7 @@ GMT=${LSEA_TEST_DIR}/in_data/c2.cp.kegg.v2023.1.Hs.symbols.gmt
 
 python3 "${LSEA_DIR}/universe_generator.py" \
     --variants "${VARIANTS}" \
+    --variants_colnames chr pos rsid \
     --features "${BED}" "${GMT}" \
     --interval 500000 \
     --out_json "${NEW_UNIVERSE}"
