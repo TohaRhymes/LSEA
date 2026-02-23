@@ -24,9 +24,13 @@ All experiments were run on a server with the following data layout:
   lsea_test/
     in_data/                    # LSEA input (variants, anno.bed, GMT, universe JSON)
     lsea_results/               # LSEA output per simulation
+  panukb/
+    ukb_summstats/              # Pan-UKB GWAS files (*.tsv.tsv and *.norm.tsv)
   panukb_lsea/
     in_data/                    # Pan-UKB LSEA input (variants, universes)
     lsea_results/               # Pan-UKB LSEA output
+    ukb_universe_bed/           # BED files per phenotype (Experiment 2)
+    ukb_universe/               # UKB phenotype universe JSON (Experiment 2)
     aggregated_checks/          # aggregated result summaries
 ```
 
@@ -84,11 +88,29 @@ These experiments apply LSEA to real GWAS data from the
 
 | Parameter | bioGWAS value | Pan-UKB value | Description |
 |-----------|--------------|---------------|-------------|
-| `--clump_p1` | 7.2973e-9 | 1.72488e-9 | P-value threshold for lead SNPs |
+| `--clump_p1` | 7.2973e-9 | 7.479e-9 (0.05/6685228) | P-value threshold for lead SNPs (Bonferroni) |
 | `--clump_p2` | 0.01 (default) | 0.01 (default) | Secondary clumping threshold |
 | `--clump_r2` | 0.1 (default) | 0.1 (default) | LD r^2 threshold |
 | `--clump_kb` | 500 (default) | 500 (default) | Physical distance for clumping (kb) |
 | Interval | 500,000 bp | 500,000 bp | Universe interval size |
+
+**Pan-UKB GWAS preprocessing:**
+
+Pan-UKB summary statistics have `neglog10_pval_EUR` instead of p-values
+and need normalization before LSEA. Use `preproc_tsv.py`:
+
+```bash
+# Converts neglog10_pval -> pval, creates rsid=chr:pos:ref:alt, filters to bfile variants
+python3 experiments/preproc_tsv.py INPUT.tsv.tsv OUTPUT.norm.tsv BFILE.bim
+```
+
+**Utility scripts:**
+| Script | Description |
+|--------|-------------|
+| `preproc_tsv.py` | Normalize Pan-UKB GWAS summary statistics |
+| `validate_single_runs.sh` | Run ONE test per experiment type and compare with existing results |
+| `rerun_all_biogwas.sh` | Full re-run of all 535 bioGWAS experiments to a new directory |
+| `compare_results.py` | Compare annotation_stats between old and new results |
 
 ## How to Reproduce
 

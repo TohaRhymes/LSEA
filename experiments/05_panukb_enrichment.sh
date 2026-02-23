@@ -2,10 +2,15 @@
 # ============================================================
 # 05_panukb_enrichment.sh — Pan-UKB enrichment analysis (Experiment 1)
 # ============================================================
-# Runs LSEA on 139 Pan-UKB phenotypes across 6 gene set categories.
+# Runs LSEA on Pan-UKB phenotypes across 6 gene set categories.
 # Each phenotype is tested against each universe independently.
 #
-# Requires: universes from 04_panukb_universes.sh
+# Prerequisites:
+#   - Universes from 04_panukb_universes.sh
+#   - Pre-normalized GWAS files (*.norm.tsv) in ukb_summstats/
+#     Created by preproc_tsv.py (converts neglog10_pval_EUR -> pval,
+#     creates rsid=chr:pos:ref:alt, filters to bfile variants)
+#
 # Original: panukb_lsea/1.2_iter_lsea.sh
 # Updated:  CLI flags changed to --long_flag format
 # ============================================================
@@ -17,43 +22,56 @@ LSEA_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 PLINK_DIR=/home/achangalidi/tools/plink
 OLD_DATA_DIR=/media/DATA/gwasim/round2/bioGWAS/tests
 PAN_UKB_DIR=/media/DATA/gwasim/round2/panukb
-OUT_DIR=/media/DATA/gwasim/round2/panukb_lsea
 
 BFILE=${OLD_DATA_DIR}/data/merged_1000genomes_eur
-PVAL=0.00000000172487933
+PVAL=0.000000007479176476853146  # 0.05/6685228 (Bonferroni)
 
-# Gene set categories
-CATEGORIES="c2 gte bcm go_bp go_cc go_mf"
+OUT_DIR=/media/DATA/gwasim/round2/panukb_lsea
 
-# --- Find all Pan-UKB GWAS files ---
-# Each file is a phenotype summary statistics TSV
-GWAS_DIR=${PAN_UKB_DIR}
+# Universes for each gene set category
+UNIVERSE_C2=${OUT_DIR}/in_data/uni_c2.json
+UNIVERSE_GTE=${OUT_DIR}/in_data/uni_gte.json
+UNIVERSE_BCM=${OUT_DIR}/in_data/uni_bcm.json
+UNIVERSE_GO_BP=${OUT_DIR}/in_data/uni_go_bp.json
+UNIVERSE_GO_CC=${OUT_DIR}/in_data/uni_go_cc.json
+UNIVERSE_GO_MF=${OUT_DIR}/in_data/uni_go_mf.json
 
-echo "Starting Pan-UKB enrichment analysis..."
+NAMES=("c2" "gte" "bcm" "go_cc" "go_mf" "go_bp")
+UNIVERSES=("$UNIVERSE_C2" "$UNIVERSE_GTE" "$UNIVERSE_BCM" "$UNIVERSE_GO_CC" "$UNIVERSE_GO_MF" "$UNIVERSE_GO_BP")
 
-for gwas_file in "${GWAS_DIR}"/*.tsv; do
-    [ -f "${gwas_file}" ] || continue
+# --- Iterate over all pre-normalized GWAS files ---
+for file in "${PAN_UKB_DIR}"/ukb_summstats/*.tsv.tsv; do
+    [ -f "${file}" ] || continue
 
-    # Extract phenotype name from filename (e.g., "biomarkers-30600-both_sexes-irnt.tsv")
-    pheno=$(basename "${gwas_file}" .tsv)
+    filename=$(basename "$file")
+    TEMPLATE="${filename%.tsv.tsv}"
 
-    for category in ${CATEGORIES}; do
-        UNIVERSE=${OUT_DIR}/in_data/uni_${category}.json
-        RESULT_DIR=${OUT_DIR}/lsea_results/${pheno}_${category}
+    GWAS_NORM="${PAN_UKB_DIR}/ukb_summstats/${TEMPLATE}.norm.tsv"
 
-        echo "Running: ${pheno} x ${category}"
+    if [ ! -f "${GWAS_NORM}" ]; then
+        echo "SKIP (no normalized file): ${TEMPLATE}"
+        continue
+    fi
+
+    for i in "${!UNIVERSES[@]}"; do
+        universe="${UNIVERSES[i]}"
+        name="${NAMES[i]}"
+
+        CUR_OUT_DIR="${OUT_DIR}/lsea_results/${TEMPLATE}_${name}"
+        mkdir -p "${CUR_OUT_DIR}"
+
+        echo "Running: ${TEMPLATE} x ${name}"
 
         python3 "${LSEA_DIR}/LSEA_2.4.py" \
-            --input "${gwas_file}" \
-            --universe "${UNIVERSE}" \
-            --out "${RESULT_DIR}" \
+            --input "${GWAS_NORM}" \
+            --universe "${universe}" \
+            --out "${CUR_OUT_DIR}" \
             --plink_dir "${PLINK_DIR}" \
             --bfile "${BFILE}" \
             --column_names chr pos rsid pval \
-            --clump_p1 "${PVAL}" \
-            --print_all
+            --clump_p1 "${PVAL}"
 
-        echo "Done: ${pheno} x ${category}"
+        echo "FINISHED FOR ${CUR_OUT_DIR} & ${universe}!"
     done
 done
 
