@@ -135,8 +135,11 @@ def make_bed_file(clumped_file, interval, out_name, output_merged_file):
                     # todo what to do with None ??
                     # Remove empty fields and split by spaces
                     clump_info = list(filter(lambda x: len(x) != 0 and x != " ", clump_info[0].split(" ")))
-                    # Skip header or malformed lines
-                    if len(clump_info) < 4 or clump_info[0].lower() == "chr":
+                    # Skip header line
+                    if clump_info[0].lower() == "chr":
+                        continue
+                    # Skip malformed lines
+                    if len(clump_info) < 4:
                         log_message(f"Skipping malformed line in PLINK .clumped file: {clump_info}")
                         continue
                     # clump_info[0]: chromosome, clump_info[3]: position (lead SNP)
@@ -183,7 +186,6 @@ def p_val_for_gene_set(n_big,
     :param k: Number of significant intervals overlapping the gene set (k).
     :return: Hypergeometric p-value (float).
     """
-    log_message(f"Args of dist: {k - 1, n_big, k_big, n}")
     return hypergeom.sf(k - 1, n_big, k_big, n)
 
 
@@ -409,6 +411,12 @@ if __name__ == '__main__':
                                               r2=r2,
                                               kb=kb,
                                               out_name=out_name)
+            # Track PLINK intermediate files for cleanup
+            plink_base = clumped_file.replace(".clumped", "")
+            plink_input = os.path.join(out_name, f'{get_filename_without_extension(tsv_file)}_for_plink.tsv')
+            plink_log = os.path.join(out_name, "PLINK_clumping.log")
+            temp_files.update([clumped_file, plink_input, plink_log,
+                               plink_base + ".log", plink_base + ".nosex"])
 
             # Build, merge, and re-center intervals around lead SNPs
             make_bed_file(clumped_file=clumped_file,
