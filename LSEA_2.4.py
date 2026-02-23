@@ -44,7 +44,7 @@ def run_plink_clumping(plink_path: str,
     out_plink = os.path.join(out_name,
                              get_filename_without_extension(tsv_file))
     with open(tsv_plink, 'w', newline='') as csvfile:
-        tsv_writer = csv.writer(csvfile, delimiter='\t')
+        tsv_writer = csv.writer(csvfile, delimiter='\t', lineterminator='\n')
         header = ["SNP", "Chr", "Pos", "P"]
         tsv_writer.writerow(header)
         for snp, values in input_dict.items():
@@ -126,7 +126,7 @@ def make_bed_file(clumped_file, interval, out_name, output_merged_file):
     merged_fixed_size_file = os.path.join(out_name, "merged_fixed_size.bed")
     # Parse the .clumped file and extract lead SNPs, writing intervals around them to a BED file
     with open(clumps_file, 'w', newline='') as bed_file:  # Here we write to new file
-        clumps_writer = csv.writer(bed_file, delimiter='\t')
+        clumps_writer = csv.writer(bed_file, delimiter='\t', lineterminator='\n')
         with open(clumped_file, 'r') as cl_file:  # Our result of clumping (SNPs sets)
             clumped_reader = csv.reader(cl_file, delimiter='\t')
             for clump_info in clumped_reader:
@@ -445,7 +445,7 @@ if __name__ == '__main__':
                 feature_names = defaultdict(set)
                 hit_count = 0
                 min_qval = 1
-                result_writer = csv.writer(file, delimiter='\t')
+                result_writer = csv.writer(file, delimiter='\t', lineterminator='\n')
                 result_writer.writerow(
                     ["gene_set", "overlapping_loci", "p_value", "q_value", "significance", "description"])
                 for i, w in enumerate(
@@ -477,7 +477,7 @@ if __name__ == '__main__':
 
         # Write summary statistics for this universe
         with open(os.path.join(out_name, f"annotation_stats_{universe_name}.tsv"), 'w', newline='') as stats_file:
-            stats_writer = csv.writer(stats_file, delimiter='\t')
+            stats_writer = csv.writer(stats_file, delimiter='\t', lineterminator='\n')
             stats_header = ['p_cutoff',
                             'num_loci',
                             'annotated_loci',
