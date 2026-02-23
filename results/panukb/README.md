@@ -4,8 +4,6 @@ Lightweight aggregated results from LSEA analysis on Pan-UK Biobank data.
 
 ## Files
 
-Copy these from the server (`/media/DATA/gwasim/round2/panukb_lsea/aggregated_checks/`):
-
 | File | Gene Set Category | Description |
 |------|------------------|-------------|
 | `C2__associated_phenos.tsv` | MSigDB C2 (KEGG) | Enriched phenotype-pathway associations |
@@ -17,15 +15,9 @@ Copy these from the server (`/media/DATA/gwasim/round2/panukb_lsea/aggregated_ch
 
 ## How to obtain
 
-```bash
-# From the server:
-SRC=/media/DATA/gwasim/round2/panukb_lsea/aggregated_checks
-scp "server:${SRC}/*__associated_phenos.tsv" .
-```
+Copy from the server path `${PANUKB_LSEA_DIR}/aggregated_checks/` (see `.env`).
 
 ## Context
 
 These TSV files summarize which phenotypes show significant enrichment
 for each gene set category (q-value < 0.05, >= 3 overlapping loci).
-They are produced by the `1.3_check_lsea.ipynb` and `2.4_check_lsea.ipynb`
-notebooks on the server.

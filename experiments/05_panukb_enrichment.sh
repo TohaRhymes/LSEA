@@ -3,50 +3,38 @@
 # 05_panukb_enrichment.sh — Pan-UKB enrichment analysis (Experiment 1)
 # ============================================================
 # Runs LSEA on Pan-UKB phenotypes across 6 gene set categories.
-# Each phenotype is tested against each universe independently.
-#
 # Prerequisites:
 #   - Universes from 04_panukb_universes.sh
 #   - Pre-normalized GWAS files (*.norm.tsv) in ukb_summstats/
-#     Created by preproc_tsv.py (converts neglog10_pval_EUR -> pval,
-#     creates rsid=chr:pos:ref:alt, filters to bfile variants)
-#
 # Original: panukb_lsea/1.2_iter_lsea.sh
-# Updated:  CLI flags changed to --long_flag format
 # ============================================================
 
 set -euo pipefail
 
-# --- Paths (adjust for your server) ---
 LSEA_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-PLINK_DIR=/home/achangalidi/tools/plink
-OLD_DATA_DIR=/media/DATA/gwasim/round2/bioGWAS/tests
-PAN_UKB_DIR=/media/DATA/gwasim/round2/panukb
+ENV_FILE="${LSEA_DIR}/.env"
+if [ ! -f "${ENV_FILE}" ]; then echo "ERROR: ${ENV_FILE} not found." >&2; exit 1; fi
+source "${ENV_FILE}"
+[ -f "${CONDA_ACTIVATE:-}" ] && source "${CONDA_ACTIVATE}"
 
-BFILE=${OLD_DATA_DIR}/data/merged_1000genomes_eur
 PVAL=0.000000007479176476853146  # 0.05/6685228 (Bonferroni)
 
-OUT_DIR=/media/DATA/gwasim/round2/panukb_lsea
-
-# Universes for each gene set category
-UNIVERSE_C2=${OUT_DIR}/in_data/uni_c2.json
-UNIVERSE_GTE=${OUT_DIR}/in_data/uni_gte.json
-UNIVERSE_BCM=${OUT_DIR}/in_data/uni_bcm.json
-UNIVERSE_GO_BP=${OUT_DIR}/in_data/uni_go_bp.json
-UNIVERSE_GO_CC=${OUT_DIR}/in_data/uni_go_cc.json
-UNIVERSE_GO_MF=${OUT_DIR}/in_data/uni_go_mf.json
-
 NAMES=("c2" "gte" "bcm" "go_cc" "go_mf" "go_bp")
-UNIVERSES=("$UNIVERSE_C2" "$UNIVERSE_GTE" "$UNIVERSE_BCM" "$UNIVERSE_GO_CC" "$UNIVERSE_GO_MF" "$UNIVERSE_GO_BP")
+UNIVERSES=(
+    "${PANUKB_LSEA_DIR}/in_data/uni_c2.json"
+    "${PANUKB_LSEA_DIR}/in_data/uni_gte.json"
+    "${PANUKB_LSEA_DIR}/in_data/uni_bcm.json"
+    "${PANUKB_LSEA_DIR}/in_data/uni_go_cc.json"
+    "${PANUKB_LSEA_DIR}/in_data/uni_go_mf.json"
+    "${PANUKB_LSEA_DIR}/in_data/uni_go_bp.json"
+)
 
-# --- Iterate over all pre-normalized GWAS files ---
-for file in "${PAN_UKB_DIR}"/ukb_summstats/*.tsv.tsv; do
+for file in "${PANUKB_DATA_DIR}"/ukb_summstats/*.tsv.tsv; do
     [ -f "${file}" ] || continue
 
     filename=$(basename "$file")
     TEMPLATE="${filename%.tsv.tsv}"
-
-    GWAS_NORM="${PAN_UKB_DIR}/ukb_summstats/${TEMPLATE}.norm.tsv"
+    GWAS_NORM="${PANUKB_DATA_DIR}/ukb_summstats/${TEMPLATE}.norm.tsv"
 
     if [ ! -f "${GWAS_NORM}" ]; then
         echo "SKIP (no normalized file): ${TEMPLATE}"
@@ -57,7 +45,7 @@ for file in "${PAN_UKB_DIR}"/ukb_summstats/*.tsv.tsv; do
         universe="${UNIVERSES[i]}"
         name="${NAMES[i]}"
 
-        CUR_OUT_DIR="${OUT_DIR}/lsea_results/${TEMPLATE}_${name}"
+        CUR_OUT_DIR="${PANUKB_LSEA_DIR}/lsea_results/${TEMPLATE}_${name}"
         mkdir -p "${CUR_OUT_DIR}"
 
         echo "Running: ${TEMPLATE} x ${name}"
@@ -67,7 +55,7 @@ for file in "${PAN_UKB_DIR}"/ukb_summstats/*.tsv.tsv; do
             --universe "${universe}" \
             --out "${CUR_OUT_DIR}" \
             --plink_dir "${PLINK_DIR}" \
-            --bfile "${BFILE}" \
+            --bfile "${PANUKB_BFILE}" \
             --column_names chr pos rsid pval \
             --clump_p1 "${PVAL}"
 

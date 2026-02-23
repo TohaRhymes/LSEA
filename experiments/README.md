@@ -8,33 +8,18 @@ This directory contains scripts to reproduce all experiments described in the LS
 - **PLINK v1.9** (for LD-based clumping)
 - **BEDTools** (for interval intersection)
 - **Python 3** with dependencies from `requirements.txt`
-- Access to genotype reference panels and GWAS summary statistics (see paths below)
+- **`.env` file** in the repository root with server-specific paths (see `.env.example`)
 
-## Server Paths
+## Setup
 
-All experiments were run on a server with the following data layout:
+Copy `.env.example` to `.env` and fill in the paths for your server:
 
-```
-/media/DATA/gwasim/round2/
-  bioGWAS/tests/
-    3_pathways/in_data/         # simulated GWAS data (bioGWAS output)
-    3_pathways/extra_in_data/   # continuous trait GWAS files
-    3_pathways/binary_in_data/  # binary trait GWAS files
-    data/                       # reference data (GMT, GTF, genotypes)
-  lsea_test/
-    in_data/                    # LSEA input (variants, anno.bed, GMT, universe JSON)
-    lsea_results/               # LSEA output per simulation
-  panukb/
-    ukb_summstats/              # Pan-UKB GWAS files (*.tsv.tsv and *.norm.tsv)
-  panukb_lsea/
-    in_data/                    # Pan-UKB LSEA input (variants, universes)
-    lsea_results/               # Pan-UKB LSEA output
-    ukb_universe_bed/           # BED files per phenotype (Experiment 2)
-    ukb_universe/               # UKB phenotype universe JSON (Experiment 2)
-    aggregated_checks/          # aggregated result summaries
+```bash
+cp .env.example .env
+# Edit .env with your paths
 ```
 
-Symlink: `/home/achangalidi/projects` -> `/media/DATA/gwasim`
+The `.env` file is in `.gitignore` and will not be pushed.
 
 ## Experiments Overview
 
@@ -71,18 +56,18 @@ These experiments apply LSEA to real GWAS data from the
 | Script | Experiment | Description |
 |--------|-----------|-------------|
 | `04_panukb_universes.sh` | Universe creation | Create 6 universes (one per gene set category) |
-| `05_panukb_enrichment.sh` | Enrichment (Exp. 1) | Run LSEA on 139 phenotypes x 6 gene set categories |
+| `05_panukb_enrichment.sh` | Enrichment (Exp. 1) | Run LSEA on phenotypes x 6 gene set categories |
 | `06_panukb_gwas_on_gwas.sh` | GWAS-on-GWAS (Exp. 2) | Use phenotype loci as "gene sets" for cross-trait enrichment |
 
 **Gene set categories:**
 | Short name | Source | Description |
 |-----------|--------|-------------|
-| `c2` | MSigDB C2 | KEGG pathways (`c2.cp.kegg.v2023.1.Hs.symbols.gmt`) |
-| `gte` | GTEx v8 | Tissue-specific gene expression (`GTEx8_formatted.gmt`) |
-| `bcm` | Literature | Blood cell marker genes (`blood_cell_markers.gmt`) |
-| `go_bp` | MSigDB C5 | GO Biological Process (`c5.go.bp.v2024.1.Hs.symbols.gmt`) |
-| `go_cc` | MSigDB C5 | GO Cellular Component (`c5.go.cc.v2024.1.Hs.symbols.gmt`) |
-| `go_mf` | MSigDB C5 | GO Molecular Function (`c5.go.mf.v2024.1.Hs.symbols.gmt`) |
+| `c2` | MSigDB C2 | KEGG pathways |
+| `gte` | GTEx v8 | Tissue-specific gene expression |
+| `bcm` | Literature | Blood cell marker genes |
+| `go_bp` | MSigDB C5 | GO Biological Process |
+| `go_cc` | MSigDB C5 | GO Cellular Component |
+| `go_mf` | MSigDB C5 | GO Molecular Function |
 
 ## Common Parameters
 
@@ -100,7 +85,6 @@ Pan-UKB summary statistics have `neglog10_pval_EUR` instead of p-values
 and need normalization before LSEA. Use `preproc_tsv.py`:
 
 ```bash
-# Converts neglog10_pval -> pval, creates rsid=chr:pos:ref:alt, filters to bfile variants
 python3 experiments/preproc_tsv.py INPUT.tsv.tsv OUTPUT.norm.tsv BFILE.bim
 ```
 
@@ -114,7 +98,7 @@ python3 experiments/preproc_tsv.py INPUT.tsv.tsv OUTPUT.norm.tsv BFILE.bim
 
 ## How to Reproduce
 
-1. **Adjust paths** in each script to match your server layout
+1. **Set up `.env`** with your server paths
 2. **Run scripts in order** (00 must complete before 01-03; 04 before 05-06)
 3. **Check results** against `../results/` directory
 

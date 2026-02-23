@@ -4,8 +4,6 @@ Lightweight aggregated results from LSEA analysis on bioGWAS simulated data.
 
 ## Files
 
-Copy these from the server (`/media/DATA/gwasim/round2/lsea_test/`):
-
 | File | Description |
 |------|-------------|
 | `TPR_to_draw_LSEA.csv` | True Positive Rate — continuous traits (50 iter x 4 pathway sizes) |
@@ -15,14 +13,7 @@ Copy these from the server (`/media/DATA/gwasim/round2/lsea_test/`):
 
 ## How to obtain
 
-```bash
-# From the server:
-SRC=/media/DATA/gwasim/round2/lsea_test
-scp server:${SRC}/TPR_to_draw_LSEA.csv .
-scp server:${SRC}/FPR_to_draw_LSEA.csv .
-scp server:${SRC}/binTPR_to_draw_LSEA.csv .
-scp server:${SRC}/binFPR_to_draw_LSEA.csv .
-```
+Copy from the server path defined as `LSEA_TEST_DIR` in your `.env` file.
 
 ## Context
 

@@ -7,8 +7,8 @@ Usage:
 
 Example:
     python3 experiments/compare_results.py \
-        /media/DATA/gwasim/round2/lsea_test/lsea_results \
-        /media/DATA/gwasim/round2/lsea_test/validation_NEW_full
+        $LSEA_TEST_DIR/lsea_results \
+        $LSEA_TEST_DIR/validation_NEW_full
 """
 
 import os
