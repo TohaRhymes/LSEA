@@ -61,7 +61,7 @@ compare_stats() {
 # ============================================================
 echo "========== Test 1: Continuous trait =========="
 TEMPLATE="test10000_path_small_0_path_small_0"
-GWAS=${BIOGWAS_DATA_DIR}/3_pathways/extra_in_data/${TEMPLATE}_gwas.tsv
+GWAS=${BIOGWAS_DATA_DIR}/3_pathways/in_data/${TEMPLATE}_gwas.tsv
 OLD_OUT=${LSEA_TEST_DIR}/lsea_results/${TEMPLATE}
 NEW_OUT=${VALIDATION_DIR}/${TEMPLATE}
 
