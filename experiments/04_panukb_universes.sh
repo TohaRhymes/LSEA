@@ -57,6 +57,7 @@ for category in c2 gte bcm go_bp go_cc go_mf; do
 
     python3 "${LSEA_DIR}/universe_generator.py" \
         --variants "${VARIANTS}" \
+        --variants_colnames chr pos rsid \
         --features "${BED}" "${GMT}" \
         --interval "${INTERVAL}" \
         --out_json "${UNIVERSE}"

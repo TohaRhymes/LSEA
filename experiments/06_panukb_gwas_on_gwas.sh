@@ -60,6 +60,7 @@ mkdir -p "${UKB_UNIVERSE_DIR}"
 
 python3 "${LSEA_DIR}/universe_generator.py" \
     --variants "${VARIANTS}" \
+    --variants_colnames chr pos rsid \
     --feature_files_dir "${UKB_BED_DIR}" \
     --interval 500000 \
     --out_json "${UKB_UNIVERSE}"

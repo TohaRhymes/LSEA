@@ -1,2 +1,12 @@
 docs/
 .env
+
+# Python
+__pycache__/
+*.pyc
+
+# IDE
+.idea/
+
+# Jupyter
+.ipynb_checkpoints/
