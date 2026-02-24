@@ -2,6 +2,13 @@
 
 This directory contains scripts to reproduce all experiments described in the LSEA paper.
 
+## Data Preparation
+
+See [DATA_PREPARATION.md](DATA_PREPARATION.md) for full details on how input data was generated:
+- bioGWAS simulations (pathway selection, simulation parameters, output format)
+- Pan-UKB GWAS summary statistics (phenotype selection, download, normalization)
+- Reference data (1000G EUR, GENCODE v37, GMT gene sets)
+
 ## Prerequisites
 
 - **LSEA** code from this repository
