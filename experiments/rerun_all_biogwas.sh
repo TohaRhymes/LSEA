@@ -32,11 +32,14 @@ TOTAL=0
 DONE=0
 
 # Part 1: Continuous traits (200 runs)
+# Iterations 0-29 are in in_data/, iterations 30-49 are in extra_in_data/
 echo "===== Part 1: Continuous traits ====="
 for i in $(seq 0 49); do
     for path_size in random big medium small; do
         TEMPLATE="test10000_path_${path_size}_${i}_path_${path_size}_${i}"
+        # Try in_data first, then extra_in_data
         GWAS=${BIOGWAS_DATA_DIR}/3_pathways/in_data/${TEMPLATE}_gwas.tsv
+        [ ! -f "${GWAS}" ] && GWAS=${BIOGWAS_DATA_DIR}/3_pathways/extra_in_data/${TEMPLATE}_gwas.tsv
         OUT=${NEW_RESULTS}/${TEMPLATE}
         TOTAL=$((TOTAL + 1))
 

@@ -23,7 +23,9 @@ for i in $(seq 0 49); do
         echo "STARTED FOR path_size=${path_size} & i=${i}!"
 
         TEMPLATE="test10000_path_${path_size}_${i}_path_${path_size}_${i}"
+        # Iterations 0-29 are in in_data/, iterations 30-49 are in extra_in_data/
         GWAS=${BIOGWAS_DATA_DIR}/3_pathways/in_data/${TEMPLATE}_gwas.tsv
+        [ ! -f "${GWAS}" ] && GWAS=${BIOGWAS_DATA_DIR}/3_pathways/extra_in_data/${TEMPLATE}_gwas.tsv
         OUT=${LSEA_TEST_DIR}/lsea_results/${TEMPLATE}
 
         python3 "${LSEA_DIR}/LSEA_2.4.py" \
