@@ -418,6 +418,13 @@ if __name__ == '__main__':
             temp_files.update([clumped_file, plink_input, plink_log,
                                plink_base + ".log", plink_base + ".nosex"])
 
+            # If PLINK found no significant SNPs, .clumped file won't exist
+            if not os.path.isfile(clumped_file):
+                log_message(f"No significant SNPs found (no .clumped file). Skipping enrichment for p={p_cutoff}.",
+                            msg_type="WARN")
+                stats_rows.append([p_cutoff, 0, 0, 0, 0, 1])
+                continue
+
             # Build, merge, and re-center intervals around lead SNPs
             make_bed_file(clumped_file=clumped_file,
                           interval=interval,
