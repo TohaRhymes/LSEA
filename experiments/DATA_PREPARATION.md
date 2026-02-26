@@ -50,11 +50,11 @@ Simulations were generated using [bioGWAS](https://github.com/TohaRhymes/GWAS_si
 
 Four pathway sizes were chosen from MSigDB C2 KEGG:
 
-| Size | Pathway | Approx. genes |
-|------|---------|---------------|
-| `small` | KEGG_STEROID_BIOSYNTHESIS | ~20 |
-| `medium` | KEGG_PPAR_SIGNALING_PATHWAY | ~50 |
-| `big` | KEGG_FOCAL_ADHESION | ~100 |
+| Size | Pathway | Genes |
+|------|---------|-------|
+| `small` | KEGG_STEROID_BIOSYNTHESIS | 17 |
+| `medium` | KEGG_PPAR_SIGNALING_PATHWAY | 69 |
+| `big` | KEGG_FOCAL_ADHESION | 199 |
 | `random` | ALL_GENES (control) | all |
 
 Pathways were selected in `0_path_pick.ipynb`.
@@ -196,9 +196,12 @@ Where 6,685,228 is the number of variants in the reference panel (1000G EUR BIM)
             data/                           # Reference data
                 merged_1000genomes_eur.*    # 1000G EUR panel
                 gencode.v37.annotation.gtf  # Gene annotations
-                c2.cp.kegg.v2023.1.Hs.symbols.gmt
-                c5.go.{bp,cc,mf}.v2024.1.Hs.symbols.gmt
-                path_{small,medium,big,random}.txt  # Pathway files
+                c2.cp.kegg.v2023.1.Hs.symbols.gmt  # C2 KEGG only (186 sets, for bioGWAS)
+                c2.all.v2023.2.Hs.symbols.gmt      # C2 all curated (7233 sets, for Pan-UKB)
+                c5.go.bp.v2024.1.Hs.symbols.gmt    # GO Biological Process (7608 sets)
+                c5.go.cc.v2024.1.Hs.symbols.gmt    # GO Cellular Component (1026 sets)
+                c5.go.mf.v2024.1.Hs.symbols.gmt    # GO Molecular Function (1820 sets)
+                path_{small,medium,big,random}.txt  # Pathway gene lists
             3_pathways/
                 in_data/                    # Continuous iter 0-29
                 extra_in_data/              # Continuous iter 30-49 + sensitivity
@@ -206,23 +209,27 @@ Where 6,685,228 is the number of variants in the reference panel (1000G EUR BIM)
     lsea_test/
         in_data/
             variants.tsv, anno.bed, uni.json, *.gmt
-        lsea_results/                       # Original LSEA results
+        lsea_results/                       # Original LSEA results (535 dirs)
+        aggregated_data/                    # TPR/FPR CSVs for plotting
         validation_NEW_full/                # Re-run results (535 experiments)
     panukb/
-        ukb_summstats/                      # Raw + normalized GWAS files
+        ukb_summstats/                      # Raw (*.tsv.tsv) + normalized (*.norm.tsv)
         download_panukb_summstats.py
         preproc_tsv.py
         run_preproc.sh
     panukb_lsea/
         in_data/
             variants.tsv, anno.bed, uni_*.json  # 6 universe files
-        lsea_results/                       # Pan-UKB LSEA results (900 dirs)
+        lsea_results/                       # Pan-UKB enrichment results (900 dirs)
+        ukb_universe_bed/                   # BED files for GWAS-on-GWAS
+        ukb_universe/                       # GWAS-on-GWAS universe
         aggregated_checks/                  # Summary TSVs per category
+        validation_NEW_panukb/              # Re-run results
     LSEA/                                   # This repository
 /media/DATA/bioinformatics/LSEA/
     tissues/
-        GTEx8_formatted.gmt                 # GTEx gene sets
-        blood_cell_markers.gmt              # Blood cell marker gene sets
+        GTEx8_formatted.gmt                 # GTEx tissue gene sets (45 non-empty tissues)
+        blood_cell_markers.gmt              # Blood cell marker gene sets (12 sets)
 ```
 
 ---

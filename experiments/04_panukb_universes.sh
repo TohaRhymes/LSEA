@@ -25,7 +25,7 @@ INTERVAL=500000
 
 # --- GMT files for each gene set category ---
 declare -A GMT_FILES
-GMT_FILES[c2]=${GMT_C2}
+GMT_FILES[c2]=${GMT_C2_ALL}
 GMT_FILES[gte]=${GMT_GTE}
 GMT_FILES[bcm]=${GMT_BCM}
 GMT_FILES[go_bp]=${GMT_GO_BP}

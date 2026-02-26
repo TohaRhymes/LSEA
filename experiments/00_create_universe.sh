@@ -20,7 +20,7 @@ source "${ENV_FILE}"
 TEMPLATE=test10000_path_small_4_path_small_4
 SOME_GWAS=${BIOGWAS_DATA_DIR}/3_pathways/in_data/${TEMPLATE}_gwas.tsv
 GTF=${GENCODE_GTF}
-GMT_SRC=${GMT_C2}
+GMT_SRC=${GMT_C2_KEGG}
 
 VARIANTS=${LSEA_TEST_DIR}/in_data/variants.tsv
 GMT=${LSEA_TEST_DIR}/in_data/c2.cp.kegg.v2023.1.Hs.symbols.gmt
