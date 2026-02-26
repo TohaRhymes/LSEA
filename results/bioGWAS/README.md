@@ -11,9 +11,21 @@ Lightweight aggregated results from LSEA analysis on bioGWAS simulated data.
 | `binTPR_to_draw_LSEA.csv` | True Positive Rate — binary traits |
 | `binFPR_to_draw_LSEA.csv` | False Positive Rate — binary traits |
 
+## Format
+
+Columns: `model`, `path`, `score`, `min`, `max`
+
+- `model`: LSEA, linreg, mean, top, PASCAL
+- `path`: pathway size (path_small, path_medium, path_big, path_random)
+- `score`: rate (TPR or FPR)
+- `min`, `max`: 95% confidence interval bounds
+
 ## How to obtain
 
-Copy from the server path defined as `LSEA_TEST_DIR` in your `.env` file.
+Data files are not tracked in git. Copy from the server:
+```bash
+scp ${LSEA_TEST_DIR}/aggregated_data/*_to_draw_LSEA.csv results/bioGWAS/
+```
 
 ## Context
 

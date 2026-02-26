@@ -69,7 +69,7 @@ These experiments apply LSEA to real GWAS data from the
 **Gene set categories:**
 | Short name | Source | Description |
 |-----------|--------|-------------|
-| `c2` | MSigDB C2 | KEGG pathways |
+| `c2` | MSigDB C2 (all) | Curated gene sets (7233 sets including KEGG, Reactome, BioCarta, etc.) |
 | `gte` | GTEx v8 | Tissue-specific gene expression |
 | `bcm` | Literature | Blood cell marker genes |
 | `go_bp` | MSigDB C5 | GO Biological Process |

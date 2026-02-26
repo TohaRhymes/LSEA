@@ -13,9 +13,20 @@ Lightweight aggregated results from LSEA analysis on Pan-UK Biobank data.
 | `GO:CC__associated_phenos.tsv` | GO Cellular Component | Enriched phenotype-GO CC associations |
 | `GO:MF__associated_phenos.tsv` | GO Molecular Function | Enriched phenotype-GO MF associations |
 
+## Format
+
+Columns: `gene_set`, `associated_phenotypes`, `phenos`
+
+- `gene_set`: gene set / pathway name
+- `associated_phenotypes`: number of phenotypes with significant enrichment
+- `phenos`: comma-separated list of phenotype names
+
 ## How to obtain
 
-Copy from the server path `${PANUKB_LSEA_DIR}/aggregated_checks/` (see `.env`).
+Data files are not tracked in git. Copy from the server:
+```bash
+scp ${PANUKB_LSEA_DIR}/aggregated_checks/*__associated_phenos.tsv results/panukb/
+```
 
 ## Context
 

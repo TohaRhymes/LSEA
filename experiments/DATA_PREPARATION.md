@@ -31,7 +31,8 @@ awk -F'\t' 'NR>=6 && $3=="gene"' gencode.v37.annotation.gtf | \
 
 | Short name | Source | File | Used in |
 |-----------|--------|------|---------|
-| `c2` | MSigDB C2 | `c2.cp.kegg.v2023.1.Hs.symbols.gmt` | bioGWAS + Pan-UKB |
+| `c2` (bioGWAS) | MSigDB C2 KEGG | `c2.cp.kegg.v2023.1.Hs.symbols.gmt` | bioGWAS |
+| `c2` (Pan-UKB) | MSigDB C2 (all) | `c2.all.v2023.2.Hs.symbols.gmt` | Pan-UKB |
 | `gte` | GTEx v8 | `GTEx8_formatted.gmt` | Pan-UKB |
 | `bcm` | Literature | `blood_cell_markers.gmt` | Pan-UKB |
 | `go_bp` | MSigDB C5 | `c5.go.bp.v2024.1.Hs.symbols.gmt` | Pan-UKB |

@@ -133,18 +133,21 @@ def read_gmt(path: str) -> Dict[str, List]:
     :param path: Path to GMT file.
     :return: Dict {set_name: list_of_features (e.g. genes)}
     :raises: FileNotFoundError if the file does not exist.
-    :raises: ValueError if any row does not have at least 3 columns.
     """
     set2features = dict()
+    skipped = 0
     if not os.path.isfile(path):
         raise FileNotFoundError(f"GMT file {path} not found.")
     with open(path, 'r', newline='') as db:
         gmt_reader = csv.reader(db, delimiter='\t')
         for i, row in enumerate(tqdm(gmt_reader)):
-            if len(row) < 3:
-                raise ValueError(f"Row {i+1} in GMT file {path} does not have at least 3 columns (gene set, id/link, features (genes))!")
+            if len(row) < 3 or all(x.strip() == '' for x in row[2:]):
+                skipped += 1
+                continue
             gene_set = row[0]
-            set2features[gene_set] = row[2:]
+            set2features[gene_set] = [x for x in row[2:] if x.strip()]
+    if skipped > 0:
+        print(f"WARNING: Skipped {skipped} rows with no genes in GMT file {path}")
     return set2features
 
 

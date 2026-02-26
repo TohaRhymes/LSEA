@@ -162,12 +162,6 @@ if __name__ == '__main__':
         if not os.path.isfile(gmt):
             log_message(f"GMT file {gmt} does not exist!", msg_type="ERROR")
             sys.exit(1)
-        # Validate GMT format (at least 3 columns per row)
-        with open(gmt, 'r') as gmtf:
-            for i, row in enumerate(gmtf):
-                if len(row.strip().split('\t')) < 3:
-                    log_message(f"Row {i+1} in GMT file {gmt} does not have at least 3 columns!", msg_type="ERROR")
-                    sys.exit(1)
         set2features = read_gmt(gmt)
     else:
         feature_dir = args.feature_files_dir

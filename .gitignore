@@ -10,3 +10,7 @@ __pycache__/
 
 # Jupyter
 .ipynb_checkpoints/
+
+# Result data files (keep READMEs only)
+results/**/*.csv
+results/**/*.tsv
