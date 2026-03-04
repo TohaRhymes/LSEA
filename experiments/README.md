@@ -113,6 +113,28 @@ Steps:
 2. Build a universe where each phenotype's loci are a "feature set"
 3. Run LSEA with `--print_all` on each phenotype against this universe
 
+### V. FinnGen Case Study — O15_HYPTENSPREG (Script 07)
+
+Full analysis pipeline for pregnancy hypertension (FinnGen R9, 14,727 cases / 196,143 controls).
+Compares LSEA with MAGMA and PASCAL on real GWAS data across all 6 gene set categories.
+
+| Script | Step | Description |
+|--------|------|-------------|
+| `07_case_study_o15.sh` | Full pipeline | Download → Preprocess → LSEA × 6 → MAGMA × 12 → PASCAL |
+| `preproc_finngen.py` | Preprocessing | liftOver hg38→hg37, create LSEA/MAGMA/PASCAL inputs |
+| `compile_case_study.py` | Results | Merge LSEA + MAGMA + PASCAL into comparison tables |
+
+Steps:
+1. Download FinnGen R9 summary statistics (O15_HYPTENSPREG)
+2. Preprocess: liftOver GRCh38→GRCh37, filter to 1000G EUR variants
+3. Run LSEA on 6 categories (reuses universes from Experiment III)
+4. Run MAGMA gene analysis (mean + top models) and gene set analysis (2 × 6)
+5. Run PASCAL (chi-squared gene scoring, BIOCARTA/KEGG/REACTOME)
+6. Compile cross-method comparison tables
+
+Prerequisites: universes from `04_panukb_universes.sh`.
+Additional `.env` variables: `MAGMA_BIN`, `PASCAL_DIR`, `LIFTOVER_BIN`, `CHAIN_FILE`, `GENE_LOC`, `CASE_STUDY_DIR`.
+
 ## Common Parameters
 
 | Parameter | bioGWAS value | Pan-UKB value | Description |
@@ -139,6 +161,9 @@ python3 experiments/preproc_tsv.py INPUT.tsv.tsv OUTPUT.norm.tsv BFILE.bim
 | Script | Description |
 |--------|-------------|
 | `preproc_tsv.py` | Normalize Pan-UKB GWAS summary statistics |
+| `preproc_finngen.py` | Preprocess FinnGen sumstats (liftOver + normalize) |
+| `compile_case_study.py` | Compile LSEA + MAGMA + PASCAL comparison tables |
+| `draw_figure2.R` | Generate Figure 2 (4-panel TPR/FPR bar plot) |
 | `compare_results.py` | Compare annotation_stats between old and new results |
 | `validate_single_runs.sh` | Run one test per experiment type and compare with existing results |
 | `rerun_all_biogwas.sh` | Full re-run of all 535 bioGWAS experiments |
@@ -163,6 +188,14 @@ bash experiments/03_lsea_sensitivity.sh  # ~hours for 135 runs
 bash experiments/04_panukb_universes.sh        # ~1h for 6 universes
 bash experiments/05_panukb_enrichment.sh       # ~15h for 900 runs
 bash experiments/06_panukb_gwas_on_gwas.sh     # ~3h for 150 runs
+
+# FinnGen case study (requires MAGMA, PASCAL, liftOver)
+bash experiments/07_case_study_o15.sh          # ~2h total
+```
+
+**Figure 2 generation** (requires R with ggplot2, dplyr, gridExtra):
+```bash
+Rscript experiments/draw_figure2.R <data_dir> <output_dir>
 ```
 
 ## CLI Flag Reference
