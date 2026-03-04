@@ -31,45 +31,46 @@ def main(finngen_gz, chain_file, bim_file, liftover_bin, out_prefix):
     need_bed = not os.path.exists(bed_path) or os.path.getsize(bed_path) == 0
     bed_out = open(bed_path, "w") if need_bed else None
 
-    with gzip.open(finngen_gz, "rt") as f:
-        header = f.readline().strip().lstrip("#").split("\t")
-        idx = {col: i for i, col in enumerate(header)}
+    try:
+        with gzip.open(finngen_gz, "rt") as f:
+            header = f.readline().strip().lstrip("#").split("\t")
+            idx = {col: i for i, col in enumerate(header)}
 
-        required = ["chrom", "pos", "ref", "alt", "pval"]
-        for col in required:
-            if col not in idx:
-                print(f"[ERROR] Column '{col}' not found in header: {header}")
-                sys.exit(1)
+            required = ["chrom", "pos", "ref", "alt", "pval"]
+            for col in required:
+                if col not in idx:
+                    print(f"[ERROR] Column '{col}' not found in header: {header}")
+                    sys.exit(1)
 
-        for line in f:
-            fields = line.strip().split("\t")
-            chrom = fields[idx["chrom"]]
-            pos = int(fields[idx["pos"]])
-            ref = fields[idx["ref"]]
-            alt = fields[idx["alt"]]
-            pval = fields[idx["pval"]]
-            rsids = fields[idx["rsids"]] if "rsids" in idx else ""
+            for line in f:
+                fields = line.strip().split("\t")
+                chrom = fields[idx["chrom"]]
+                pos = int(fields[idx["pos"]])
+                ref = fields[idx["ref"]]
+                alt = fields[idx["alt"]]
+                pval = fields[idx["pval"]]
+                rsids = fields[idx["rsids"]] if "rsids" in idx else ""
 
-            # Skip non-autosomal and invalid
-            if chrom not in autosomal:
-                continue
-            try:
-                pval_f = float(pval)
-                if pval_f <= 0 or pval_f > 1:
+                # Skip non-autosomal and invalid
+                if chrom not in autosomal:
                     continue
-            except ValueError:
-                continue
+                try:
+                    pval_f = float(pval)
+                    if pval_f <= 0 or pval_f > 1:
+                        continue
+                except ValueError:
+                    continue
 
-            # unique ID for liftOver tracking
-            var_id = f"{chrom}:{pos}:{ref}:{alt}"
-            variants.append((chrom, pos, ref, alt, pval, rsids))
+                # unique ID for liftOver tracking
+                var_id = f"{chrom}:{pos}:{ref}:{alt}"
+                variants.append((chrom, pos, ref, alt, pval, rsids))
 
-            # BED is 0-based: chr start end name
-            if bed_out:
-                bed_out.write(f"chr{chrom}\t{pos - 1}\t{pos}\t{var_id}\n")
-
-    if bed_out:
-        bed_out.close()
+                # BED is 0-based: chr start end name
+                if bed_out:
+                    bed_out.write(f"chr{chrom}\t{pos - 1}\t{pos}\t{var_id}\n")
+    finally:
+        if bed_out:
+            bed_out.close()
 
     print(f"[INFO] Read {len(variants)} autosomal variants from FinnGen")
 

@@ -70,8 +70,8 @@ for category in c2 gte bcm go_bp go_cc go_mf; do
     # Compare with old
     python3 -c "
 import json, sys
-old = json.load(open('${OLD_UNIVERSE}'))
-new = json.load(open('${NEW_UNIVERSE}'))
+with open('${OLD_UNIVERSE}') as f: old = json.load(f)
+with open('${NEW_UNIVERSE}') as f: new = json.load(f)
 checks = [
     ('interval', old['interval'] == new['interval']),
     ('universe_intervals_number', old['universe_intervals_number'] == new['universe_intervals_number']),

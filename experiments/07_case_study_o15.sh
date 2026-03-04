@@ -127,7 +127,7 @@ for cat in "${CATEGORIES[@]}"; do
         --plink_dir "${PLINK_DIR}" \
         --bfile "${BFILE}" \
         --column_names chr pos rsid pval \
-        --clump_p1 ${CLUMP_P1} \
+        --clump_p1 "${CLUMP_P1}" \
         --print_all
 
     log "LSEA ${cat}: done"
@@ -217,9 +217,11 @@ if [ ! -f "${PASCAL_RESULT}" ]; then
     # Copy pascal input to PASCAL dir
     cp "${PASCAL_INPUT}" "${PASCAL_DIR}/${PHENOTYPE}_pascal.txt"
 
-    log "Running PASCAL..."
-    ./Pascal --runpathway=on --pval="${PHENOTYPE}_pascal.txt" \
-        > "${PASCAL_OUT_DIR}/${PHENOTYPE}_pascal.log" 2>&1 || true
+    log "Running PASCAL (failures are non-fatal — PASCAL may fail on sparse inputs)..."
+    if ! ./Pascal --runpathway=on --pval="${PHENOTYPE}_pascal.txt" \
+        > "${PASCAL_OUT_DIR}/${PHENOTYPE}_pascal.log" 2>&1; then
+        log "WARNING: PASCAL exited with non-zero status. Check log: ${PASCAL_OUT_DIR}/${PHENOTYPE}_pascal.log"
+    fi
 
     # Move results back
     if ls "${PASCAL_DIR}/output/${PHENOTYPE}_pascal"* 1>/dev/null 2>&1; then
