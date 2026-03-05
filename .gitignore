@@ -14,3 +14,6 @@ __pycache__/
 # Result data files (keep READMEs only)
 results/**/*.csv
 results/**/*.tsv
+
+# Case study results (local-only, not for GitHub)
+results/case_study_o15/
