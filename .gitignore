@@ -11,6 +11,12 @@ __pycache__/
 # Jupyter
 .ipynb_checkpoints/
 
+# Node.js
+node_modules/
+
+# R generated plots
+Rplots.pdf
+
 # Result data files (keep READMEs only)
 results/**/*.csv
 results/**/*.tsv

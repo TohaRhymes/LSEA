@@ -39,7 +39,8 @@ def parse_lsea_results(result_dir, category):
 
 
 def parse_lsea_stats(result_dir, category):
-    """Parse LSEA annotation_stats file."""
+    """Parse LSEA annotation_stats file, cross-validated against actual results."""
+    import re
     stats_file = os.path.join(result_dir, f"annotation_stats_uni_{category}.tsv")
     stats = {}
     if os.path.exists(stats_file):
@@ -52,6 +53,41 @@ def parse_lsea_stats(result_dir, category):
                     "significant_hits": int(row["significant_hits"]),
                     "min_qval": float(row["min_qval"]),
                 }
+
+    # Cross-validate against actual result files: annotation_stats can be stale
+    # (e.g. annotated_loci=0 while results show overlaps). Recompute from results.
+    for fname in os.listdir(result_dir):
+        if not (fname.startswith(f"uni_{category}_result_") and fname.endswith(".tsv")):
+            continue
+        p_cutoff_str = fname.replace(f"uni_{category}_result_", "").replace(".tsv", "")
+        try:
+            p_cutoff = float(p_cutoff_str)
+        except ValueError:
+            continue
+
+        all_loci = set()
+        sig_hits = 0
+        min_q = 1.0
+        with open(os.path.join(result_dir, fname)) as f:
+            reader = csv.DictReader(f, delimiter="\t")
+            for row in reader:
+                q = float(row["q_value"])
+                min_q = min(min_q, q)
+                if row["significance"].lower() == "true":
+                    sig_hits += 1
+                # Count unique annotated loci from description column
+                desc = row.get("description", "{}")
+                loci_keys = re.findall(r"'(\d+:[0-9]+-[0-9]+)'", desc)
+                all_loci.update(loci_keys)
+
+        if p_cutoff not in stats:
+            stats[p_cutoff] = {"num_loci": 0, "annotated_loci": 0,
+                                "significant_hits": 0, "min_qval": 1.0}
+        # Override stale values from annotation_stats
+        stats[p_cutoff]["annotated_loci"] = len(all_loci)
+        stats[p_cutoff]["significant_hits"] = sig_hits
+        stats[p_cutoff]["min_qval"] = min_q
+
     return stats
 
 
