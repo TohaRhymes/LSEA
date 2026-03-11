@@ -252,8 +252,8 @@ def main():
     # ==================================================================
     print("\nGenerating Figure 4 (multi-panel)...")
 
-    fig = plt.figure(figsize=(26, 14))
-    gs = gridspec.GridSpec(1, 2, width_ratios=[2.2, 1], wspace=0.38)
+    fig = plt.figure(figsize=(24, 13))
+    gs = gridspec.GridSpec(1, 2, width_ratios=[1.5, 1], wspace=0.35)
 
     # --- Panel A ---
     ax_heat = fig.add_subplot(gs[0])
@@ -269,9 +269,6 @@ def main():
     # Color label backgrounds
     color_ticklabels(ax_heat, d2k_sub, key2type, axis='y')
     color_ticklabels(ax_heat, d2k_sub, key2type, axis='x')
-
-    # Trait-type legend (upper-right — sparse area of heatmap)
-    trait_type_legend(ax_heat, key2type, original_keys)
 
     # Panel label outside axes
     panel_label(ax_heat, 'A')
@@ -310,6 +307,23 @@ def main():
                         label='Bonferroni threshold')
 
     panel_label(ax_scat, 'B')
+
+    # --- External trait-type legend (lower-left: empty space below heatmap) ---
+    present = set(str(key2type.get(k, '')).lower() for k in original_keys)
+    legend_elements = [Patch(facecolor=col, edgecolor='#AAAAAA', linewidth=0.5,
+                             label=cat.capitalize())
+                       for cat, col in TRAIT_TYPE_COLORS.items()
+                       if cat in present]
+    if legend_elements:
+        fig.legend(handles=legend_elements,
+                   loc='lower left',
+                   bbox_to_anchor=(0.02, 0.01),
+                   ncol=2,
+                   fontsize=9,
+                   title='Trait type',
+                   title_fontsize=10,
+                   frameon=True, fancybox=True,
+                   framealpha=0.93, edgecolor='#CCCCCC')
 
     for fmt in ['pdf', 'png']:
         dpi = 150 if fmt == 'pdf' else 300

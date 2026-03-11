@@ -164,8 +164,9 @@ python3 experiments/preproc_tsv.py INPUT.tsv.tsv OUTPUT.norm.tsv BFILE.bim
 | `preproc_finngen.py` | Preprocess FinnGen sumstats (liftOver + normalize) |
 | `compile_case_study.py` | Compile LSEA + MAGMA + PASCAL comparison tables |
 | `draw_figure2.R` | Generate Figure 2 (4-panel TPR/FPR bar plot) |
-| `generate_figure3.py` | Generate Figure 3 (BCM + GTE bars) and supplementary enrichment figures |
+| `generate_figure3.py` | Generate Figure 3 (BCM + GTE bars) and supplementary enrichment figures (Supp Figs 3–8) |
 | `generate_figure4.py` | Generate Figure 4 (GWAS-on-GWAS multi-panel) and Supplementary Figure 9 |
+| `generate_supp_sensitivity.py` | Generate Supp Figs 1–2 (sensitivity k-sweep TPR bars and recovered loci scatter) |
 | `compare_results.py` | Compare annotation_stats between old and new results |
 | `validate_single_runs.sh` | Run one test per experiment type and compare with existing results |
 | `rerun_all_biogwas.sh` | Full re-run of all 535 bioGWAS experiments |
@@ -215,6 +216,13 @@ python3 experiments/generate_figure4.py \
     --corr_file path/to/corr_indep.tsv \
     --out_dir ./article_figures/ \
     --top_n 40
+```
+
+**Supplementary Figures 1–2 generation** (sensitivity k-sweep; requires matplotlib, scipy):
+```bash
+python3 experiments/generate_supp_sensitivity.py \
+    --results_dir path/to/validation_NEW_full/ \
+    --out_dir ./article_figures/
 ```
 
 ## CLI Flag Reference
