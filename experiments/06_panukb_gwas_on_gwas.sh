@@ -41,9 +41,16 @@ for dir in "${PANUKB_LSEA_DIR}/lsea_results"/*/; do
     fi
 
     if [[ -f "$dir/merged_with_line_numbers.bed" ]]; then
-        # Strip category suffix: "pheno_c2" -> "pheno.bed"
-        new_name="${dirname%_*}.bed"
-        cp "$dir/merged_with_line_numbers.bed" "${UKB_BED_DIR}/${new_name}"
+        # Strip known category suffix (handles multi-word: go_bp, go_cc, go_mf)
+        # "pheno_go_bp" -> "pheno.bed", "pheno_c2" -> "pheno.bed"
+        new_name="${dirname}"
+        for cat_suffix in "_go_bp" "_go_cc" "_go_mf" "_c2" "_gte" "_bcm"; do
+            if [[ "${new_name}" == *"${cat_suffix}" ]]; then
+                new_name="${new_name%${cat_suffix}}"
+                break
+            fi
+        done
+        cp "$dir/merged_with_line_numbers.bed" "${UKB_BED_DIR}/${new_name}.bed"
     else
         echo "File not found in directory: ${dirname}"
     fi
