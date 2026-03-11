@@ -1,7 +1,7 @@
 # LSEA Experiments
 
 This directory contains scripts to reproduce all experiments described in the LSEA paper
-("LSEA: Instrument for Fast and Flexible Interval-Based Enrichment Analysis",
+("LSEA: Instrument for Flexible Interval-Based Enrichment Analysis",
 Changalidis et al.).
 
 ## Data Preparation
@@ -164,6 +164,8 @@ python3 experiments/preproc_tsv.py INPUT.tsv.tsv OUTPUT.norm.tsv BFILE.bim
 | `preproc_finngen.py` | Preprocess FinnGen sumstats (liftOver + normalize) |
 | `compile_case_study.py` | Compile LSEA + MAGMA + PASCAL comparison tables |
 | `draw_figure2.R` | Generate Figure 2 (4-panel TPR/FPR bar plot) |
+| `generate_figure3.py` | Generate Figure 3 (BCM + GTE bars) and supplementary enrichment figures |
+| `generate_figure4.py` | Generate Figure 4 (GWAS-on-GWAS multi-panel) and Supplementary Figure 9 |
 | `compare_results.py` | Compare annotation_stats between old and new results |
 | `validate_single_runs.sh` | Run one test per experiment type and compare with existing results |
 | `rerun_all_biogwas.sh` | Full re-run of all 535 bioGWAS experiments |
@@ -196,6 +198,23 @@ bash experiments/07_case_study_o15.sh          # ~2h total
 **Figure 2 generation** (requires R with ggplot2, dplyr, gridExtra):
 ```bash
 Rscript experiments/draw_figure2.R <data_dir> <output_dir>
+```
+
+**Figure 3 generation** (enrichment bar plots; requires matplotlib, seaborn, pandas):
+```bash
+python3 experiments/generate_figure3.py \
+    --results_dir ./validation_NEW_panukb/ \
+    --out_dir ./article_figures/
+```
+
+**Figure 4 generation** (GWAS-on-GWAS multi-panel; requires matplotlib, seaborn, scipy, tqdm):
+```bash
+python3 experiments/generate_figure4.py \
+    --results_dir ./validation_NEW_panukb/ \
+    --manifest 'path/to/phenotype_manifest.tsv' \
+    --corr_file path/to/corr_indep.tsv \
+    --out_dir ./article_figures/ \
+    --top_n 40
 ```
 
 ## CLI Flag Reference
