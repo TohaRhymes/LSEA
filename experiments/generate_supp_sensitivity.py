@@ -20,7 +20,15 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from scipy import stats
-from scipy.stats import t as tdist
+
+
+def wilson_ci(p, n, z=1.96):
+    """Wilson score 95% CI for a proportion p estimated from n trials."""
+    if n == 0:
+        return 0.0, 0.0
+    center = (p + z**2 / (2 * n)) / (1 + z**2 / n)
+    margin = z * np.sqrt(p * (1 - p) / n + z**2 / (4 * n**2)) / (1 + z**2 / n)
+    return max(0.0, center - margin), min(1.0, center + margin)
 
 
 # Target pathway per size
@@ -131,23 +139,22 @@ def main():
 
     for ax, size in zip(axes, SIZES):
         sub = data[data['size'] == size]
-        # Aggregate over 3 iterations
+        # Aggregate over 3 iterations using Wilson score 95% CI
         agg = (sub.groupby('k')['significant']
-               .agg(['mean', 'std', 'count'])
+               .agg(['sum', 'count'])
                .reset_index()
-               .rename(columns={'mean': 'tpr', 'std': 'sd', 'count': 'n'}))
+               .rename(columns={'sum': 'hits', 'count': 'n'}))
+        agg['tpr'] = agg['hits'] / agg['n']
         agg = agg.sort_values('k')
-
-        # 95% CI: t * sd / sqrt(n)
-        agg['ci'] = agg.apply(
-            lambda r: tdist.ppf(0.975, df=max(int(r['n']) - 1, 1))
-                      * r['sd'] / np.sqrt(r['n'])
-                      if r['n'] > 1 else 0.0,
-            axis=1)
 
         ks = agg['k'].tolist()
         tpr_vals = agg['tpr'].tolist()
-        ci_vals  = agg['ci'].tolist()
+        # Asymmetric Wilson CI bars
+        ci_lo, ci_hi = [], []
+        for p, n_obs in zip(tpr_vals, agg['n'].tolist()):
+            lo, hi = wilson_ci(p, int(n_obs))
+            ci_lo.append(p - lo)
+            ci_hi.append(hi - p)
 
         ax.bar(ks, tpr_vals,
                color=SIZE_COLORS[size],
@@ -155,7 +162,8 @@ def main():
                linewidth=0.8,
                width=0.72,
                zorder=2)
-        ax.errorbar(ks, tpr_vals, yerr=ci_vals,
+        ax.errorbar(ks, tpr_vals,
+                    yerr=[ci_lo, ci_hi],
                     fmt='none', color='#333333',
                     linewidth=1.3, capsize=3.5, capthick=1.2,
                     zorder=3)

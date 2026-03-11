@@ -252,8 +252,8 @@ def main():
     # ==================================================================
     print("\nGenerating Figure 4 (multi-panel)...")
 
-    fig = plt.figure(figsize=(24, 13))
-    gs = gridspec.GridSpec(1, 2, width_ratios=[1.5, 1], wspace=0.35)
+    fig = plt.figure(figsize=(32, 14))
+    gs = gridspec.GridSpec(1, 2, width_ratios=[1, 1], wspace=0.45)
 
     # --- Panel A ---
     ax_heat = fig.add_subplot(gs[0])
@@ -261,10 +261,10 @@ def main():
                 vmin=0, vmax=vmax_sub,
                 xticklabels=True, yticklabels=True, ax=ax_heat,
                 linewidths=0.15, linecolor='white',
-                cbar_kws={'shrink': 0.42, 'aspect': 25, 'pad': 0.02,
+                cbar_kws={'shrink': 0.82, 'aspect': 30, 'pad': 0.02,
                           'label': '$-\\log_{10}$(p-value)'})
-    ax_heat.tick_params(axis='x', labelsize=9, rotation=90)
-    ax_heat.tick_params(axis='y', labelsize=9)
+    ax_heat.tick_params(axis='x', labelsize=10, rotation=90)
+    ax_heat.tick_params(axis='y', labelsize=10)
 
     # Color label backgrounds
     color_ticklabels(ax_heat, d2k_sub, key2type, axis='y')
@@ -289,12 +289,14 @@ def main():
 
     y_vals = [np.log10(x) if x > 0 else 0 for x in lsea_list]
     ax_scat.scatter(gc_list, y_vals,
-                    alpha=0.35, s=10, color='#D4A574',
-                    edgecolors='#A0784C', linewidths=0.2,
+                    alpha=0.4, s=20, color='#D4A574',
+                    edgecolors='#A0784C', linewidths=0.25,
                     rasterized=True)
-    ax_scat.set_xlabel('Genetic Correlation', fontsize=12)
-    ax_scat.set_ylabel('$\\log_{10}(-\\log_{10}$ p-value$)$', fontsize=12)
-    ax_scat.tick_params(labelsize=10)
+    ax_scat.set_xlabel('Genetic Correlation', fontsize=14)
+    ax_scat.set_ylabel('$\\log_{10}(-\\log_{10}$ p-value$)$', fontsize=14)
+    ax_scat.set_title('Genetic correlation vs\nLSEA enrichment',
+                      fontsize=14, fontweight='bold')
+    ax_scat.tick_params(labelsize=12)
     ax_scat.set_box_aspect(1)   # square axes box
     ax_scat.grid(True, alpha=0.15, linewidth=0.5)
     ax_scat.set_axisbelow(True)
@@ -317,13 +319,13 @@ def main():
     if legend_elements:
         fig.legend(handles=legend_elements,
                    loc='lower left',
-                   bbox_to_anchor=(0.02, 0.01),
-                   ncol=2,
-                   fontsize=9,
+                   bbox_to_anchor=(0.01, 0.01),
+                   ncol=1,
+                   fontsize=10,
                    title='Trait type',
-                   title_fontsize=10,
+                   title_fontsize=11,
                    frameon=True, fancybox=True,
-                   framealpha=0.93, edgecolor='#CCCCCC')
+                   framealpha=0.95, edgecolor='#BBBBBB')
 
     for fmt in ['pdf', 'png']:
         dpi = 150 if fmt == 'pdf' else 300

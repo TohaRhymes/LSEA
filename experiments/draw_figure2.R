@@ -29,72 +29,87 @@ output_dir <- args[2]
 dir.create(output_dir, showWarnings = FALSE, recursive = TRUE)
 
 # --- Constants ---
-BARS_WIDTH <- 0.5
+BARS_WIDTH   <- 0.5
 ERRORS_WIDTH <- 0.2
 
-pastel_colors <- c("path_small" = "#b1decc", "path_medium" = "#a1cff0",
-                   "path_big" = "#9598f0", "path_random" = "#ebbcdb")
+pastel_colors <- c("path_small"  = "#b1decc",
+                   "path_medium" = "#a1cff0",
+                   "path_big"    = "#9598f0",
+                   "path_random" = "#ebbcdb")
 
-path_labels <- c("path_small" = "Small (17 genes)",
+path_labels <- c("path_small"  = "Small (17 genes)",
                  "path_medium" = "Medium (69 genes)",
-                 "path_big" = "Large (199 genes)",
-                 "path_random" = "Random (FPR)")
+                 "path_big"    = "Large (199 genes)",
+                 "path_random" = "Random pathway (FPR control)")
 
 model_levels <- c("MAGMA:\nlinreg", "MAGMA:\nmean", "MAGMA:\ntop", "PASCAL", "LSEA")
 
+# Format bar labels: hide exact zero, show two decimal places otherwise
+bar_label <- function(x) ifelse(x == 0, "", sprintf("%.2f", x))
+
 # --- Helper functions ---
 get_only_legend <- function(plot) {
-  plot_table <- ggplot_gtable(ggplot_build(plot))
+  plot_table  <- ggplot_gtable(ggplot_build(plot))
   legend_plot <- which(sapply(plot_table$grobs, function(x) x$name) == "guide-box")
-  legend <- plot_table$grobs[[legend_plot]]
-  return(legend)
+  plot_table$grobs[[legend_plot]]
 }
 
 prepare_data <- function(filepath) {
   data <- read.csv(filepath)
   data$model <- recode(data$model,
                        "linreg" = "MAGMA:\nlinreg",
-                       "mean" = "MAGMA:\nmean",
-                       "top" = "MAGMA:\ntop")
+                       "mean"   = "MAGMA:\nmean",
+                       "top"    = "MAGMA:\ntop")
   data$model <- factor(data$model, levels = model_levels)
-  data$path <- factor(data$path, levels = names(pastel_colors))
+  data$path  <- factor(data$path,  levels = names(pastel_colors))
   return(data)
 }
 
+shared_theme <- theme_minimal() +
+  theme(
+    legend.title       = element_blank(),
+    panel.grid.major   = element_blank(),
+    panel.grid.minor   = element_blank(),
+    panel.border       = element_rect(color = "black", fill = NA, linewidth = 0.5),
+    axis.text.x        = element_text(size = 9),
+    axis.text.y        = element_text(size = 9),
+    axis.title.y       = element_text(size = 11),
+    plot.title         = element_text(size = 12, face = "bold"),
+    legend.position    = "none"
+  )
+
 make_tpr_plot <- function(data, title_text) {
   ggplot(data, aes(x = model, y = score, fill = path)) +
-    geom_bar(stat = "identity", position = position_dodge(0.6), width = BARS_WIDTH, color = "black", linewidth = 0.3) +
-    geom_point(position = position_dodge(0.6), size = 1) +
-    geom_errorbar(aes(ymin = min, ymax = max), position = position_dodge(0.6), linewidth = 0.5, width = ERRORS_WIDTH) +
+    geom_bar(stat = "identity", position = position_dodge(0.6),
+             width = BARS_WIDTH, color = "black", linewidth = 0.3) +
+    geom_errorbar(aes(ymin = min, ymax = max),
+                  position = position_dodge(0.6),
+                  linewidth = 0.5, width = ERRORS_WIDTH) +
+    geom_text(aes(label = bar_label(score)),
+              position = position_dodge(0.6),
+              vjust = -0.3, size = 2.3, color = "#111111",
+              check_overlap = TRUE) +
     scale_fill_manual(values = pastel_colors, labels = path_labels) +
     labs(title = title_text, y = "TPR", x = "") +
-    scale_y_continuous(limits = c(0, 1), expand = c(0, 0)) +
-    theme_minimal() +
-    theme(
-      legend.title = element_blank(),
-      panel.grid.major = element_blank(),
-      panel.grid.minor = element_blank(),
-      panel.border = element_rect(color = "black", fill = NA, linewidth = 0.5),
-      legend.position = "none"
-    )
+    scale_y_continuous(limits = c(0, 1.13), expand = c(0, 0)) +
+    shared_theme
 }
 
 make_fpr_plot <- function(data, title_text) {
   ggplot(data, aes(x = model, y = score, fill = path)) +
-    geom_bar(stat = "identity", position = position_dodge(0.6), width = BARS_WIDTH / 3, color = "black", linewidth = 0.3) +
-    geom_point(position = position_dodge(0.6), size = 1) +
-    geom_errorbar(aes(ymin = min, ymax = max), position = position_dodge(0.6), linewidth = 0.5, width = ERRORS_WIDTH / 3) +
+    geom_bar(stat = "identity", position = position_dodge(0.6),
+             width = BARS_WIDTH / 3, color = "black", linewidth = 0.3) +
+    geom_errorbar(aes(ymin = min, ymax = max),
+                  position = position_dodge(0.6),
+                  linewidth = 0.5, width = ERRORS_WIDTH / 3) +
+    geom_text(aes(label = bar_label(score)),
+              position = position_dodge(0.6),
+              vjust = -0.3, size = 2.3, color = "#111111",
+              check_overlap = TRUE) +
     scale_fill_manual(values = pastel_colors, labels = path_labels) +
     labs(title = title_text, y = "FPR", x = "") +
-    scale_y_continuous(limits = c(0, 1), expand = c(0, 0)) +
-    theme_minimal() +
-    theme(
-      legend.title = element_blank(),
-      panel.grid.major = element_blank(),
-      panel.grid.minor = element_blank(),
-      panel.border = element_rect(color = "black", fill = NA, linewidth = 0.5),
-      legend.position = "none"
-    )
+    scale_y_continuous(limits = c(0, 1.13), expand = c(0, 0)) +
+    shared_theme
 }
 
 # --- Read data ---
@@ -106,24 +121,33 @@ bin_fpr  <- prepare_data(file.path(data_dir, "binFPR_to_draw_LSEA.csv"))
 # --- Create 4 panels ---
 p1 <- make_tpr_plot(cont_tpr, "Continuous: TPR")
 p2 <- make_fpr_plot(cont_fpr, "Continuous: FPR")
-p3 <- make_tpr_plot(bin_tpr, "Binary: TPR")
-p4 <- make_fpr_plot(bin_fpr, "Binary: FPR")
+p3 <- make_tpr_plot(bin_tpr,  "Binary: TPR")
+p4 <- make_fpr_plot(bin_fpr,  "Binary: FPR")
 
-# --- Shared legend (all 4 path types) ---
+# --- Shared legend with black borders on squares ---
 dummy_data <- data.frame(
   model = factor(rep("LSEA", 4), levels = model_levels),
-  path = factor(names(pastel_colors), levels = names(pastel_colors)),
+  path  = factor(names(pastel_colors), levels = names(pastel_colors)),
   score = rep(0.5, 4), min = rep(0.4, 4), max = rep(0.6, 4)
 )
 legend_plot <- ggplot(dummy_data, aes(x = model, y = score, fill = path)) +
-  geom_bar(stat = "identity", position = position_dodge(0.6)) +
+  geom_bar(stat = "identity", position = position_dodge(0.6),
+           color = "black", linewidth = 0.4) +
   scale_fill_manual(values = pastel_colors, labels = path_labels) +
-  theme(legend.position = "bottom", legend.title = element_blank())
+  guides(fill = guide_legend(override.aes = list(color = "black",
+                                                  linewidth = 0.5))) +
+  theme(
+    legend.position    = "bottom",
+    legend.title       = element_blank(),
+    legend.text        = element_text(size = 11),
+    legend.key.size    = unit(0.7, "cm"),
+    legend.key.spacing = unit(0.3, "cm")
+  )
 shared_legend <- get_only_legend(legend_plot)
 
 # --- Combine: 2x2 grid + shared legend ---
-p_grid <- grid.arrange(p1, p2, p3, p4, ncol = 2)
-p_final <- grid.arrange(p_grid, shared_legend, nrow = 2, heights = c(10, 1))
+p_grid  <- grid.arrange(p1, p2, p3, p4, ncol = 2)
+p_final <- grid.arrange(p_grid, shared_legend, nrow = 2, heights = c(10, 1.2))
 
 # --- Save ---
 pdf_out <- file.path(output_dir, "Figure2_TPR_FPR.pdf")

@@ -148,8 +148,9 @@ def main():
     axes_flat = axes.T.flatten()  # Column-first order
 
     for ax, (cat_name, color) in zip(axes_flat, zip(NAMES, COLORS)):
-        df = pd.DataFrame(final_dict_result[cat_name][:args.top_n],
-                          columns=['geneset', 'hits'])
+        df_all = pd.DataFrame(final_dict_result[cat_name],
+                              columns=['geneset', 'hits'])
+        df = df_all[df_all['hits'] >= args.min_phenos].head(args.top_n).copy()
         df['geneset'] = df['geneset'].str.replace('_', ' ')
         df['geneset'] = df['geneset'].apply(
             lambda x: x[:50] + '...' if len(x) > 50 else x)
@@ -157,8 +158,9 @@ def main():
                     edgecolor='black', ax=ax)
         ax.set_xlabel('')
         ax.set_ylabel('')
-        ax.set_title(f'{cat_name} (top-{min(args.top_n, len(df))})',
-                     fontsize=14, fontweight='bold')
+        ax.set_title(f'{cat_name}\n'
+                     f'(≥{args.min_phenos} phenotypes; top {len(df)} shown)',
+                     fontsize=13, fontweight='bold')
         ax.xaxis.set_label_position('top')
         ax.xaxis.tick_top()
         ax.tick_params(axis='y', labelsize=10)
