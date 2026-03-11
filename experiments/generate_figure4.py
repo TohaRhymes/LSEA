@@ -3,11 +3,12 @@
 
 Figure 4:
   Panel A — Continuous heatmap of top phenotypes (by number of significant pairs),
-             hierarchically clustered, with trait-type color strips and readable names.
-  Panel B — Scatter plot of genetic correlation vs LSEA enrichment significance.
+             hierarchically clustered. Tick-label backgrounds are colored by
+             trait type (matching the Figure 3 palette).
+  Panel B — Square scatter plot of genetic correlation vs LSEA enrichment.
 
 Supplementary Figure 9:
-  Full 150x129 continuous heatmap with readable phenotype names from the manifest.
+  Full 150x129 continuous heatmap with readable names and trait-type label coloring.
 
 Usage:
     python generate_figure4.py \\
@@ -33,36 +34,31 @@ from scipy.cluster.hierarchy import linkage, leaves_list
 from tqdm import tqdm
 
 
-# ---- Trait-type color palette ----
+# ---- Pastel trait-type palette (consistent with Figure 3 style) ----
 TRAIT_TYPE_COLORS = {
-    'continuous':    '#4ECDC4',
-    'biomarkers':    '#FF6B6B',
-    'prescriptions': '#95E1D3',
-    'icd10':         '#F38181',
-    'phecode':       '#FCE38A',
-    'categorical':   '#EAFFD0',
+    'continuous':    '#C9E4DE',
+    'biomarkers':    '#F2C6DE',
+    'prescriptions': '#DBCDF0',
+    'icd10':         '#F7D9C4',
+    'phecode':       '#FAEDCB',
+    'categorical':   '#C6DEF1',
 }
-DEFAULT_TRAIT_COLOR = '#CCCCCC'
+DEFAULT_TRAIT_COLOR = '#E8E8E8'
 
 
 def parse_args():
     p = argparse.ArgumentParser(
         description="Generate GWAS-on-GWAS Figure 4 (multi-panel) and Supplementary Figure 9")
-    p.add_argument("--results_dir", required=True,
-                   help="Path to GWAS-on-GWAS results (e.g. ./validation_NEW_panukb/)")
-    p.add_argument("--manifest", required=True,
-                   help="Pan-UKB phenotype manifest TSV")
-    p.add_argument("--corr_file", required=True,
-                   help="Pairwise genetic correlation TSV (corr_indep.tsv)")
-    p.add_argument("--out_dir", required=True,
-                   help="Output directory for figures")
+    p.add_argument("--results_dir", required=True)
+    p.add_argument("--manifest", required=True)
+    p.add_argument("--corr_file", required=True)
+    p.add_argument("--out_dir", required=True)
     p.add_argument("--top_n", type=int, default=40,
                    help="Number of phenotypes for Panel A subset (default: 40)")
     return p.parse_args()
 
 
 def make_square_matrix(df):
-    """Expand a potentially non-square matrix to a square one (union of row/col names)."""
     all_names = sorted(set(df.index) | set(df.columns))
     result = pd.DataFrame(0.0, index=all_names, columns=all_names)
     for col in df.columns:
@@ -73,7 +69,6 @@ def make_square_matrix(df):
 
 
 def reorder_by_clustering(df):
-    """Reorder rows/columns of a square DataFrame by Ward hierarchical clustering."""
     corr = df.corr()
     Z = linkage(corr, method='ward')
     order = leaves_list(Z)
@@ -81,57 +76,58 @@ def reorder_by_clustering(df):
 
 
 def load_results(results_dir):
-    """Load GWAS-on-GWAS -log10(p) values from result directories."""
     matching_dirs = glob.glob(os.path.join(results_dir, '*_ukb'))
     print(f"  {len(matching_dirs)} phenotype directories found")
-
     all_sets = {}
     for cur_dir in tqdm(matching_dirs, desc="Loading results"):
-        matching_pvals = glob.glob(
+        pvals_files = glob.glob(
             os.path.join(cur_dir, "*_result_7.479176476853146e-09.tsv"))
         try:
-            data = pd.read_csv(matching_pvals[0], sep='\t').set_index('gene_set')
+            data = pd.read_csv(pvals_files[0], sep='\t').set_index('gene_set')
             key = os.path.basename(cur_dir).replace('_ukb', '')
             all_sets[key] = data['p_value'].apply(
                 lambda x: -np.log10(x) if x > 0 else 0)
         except (IndexError, KeyError):
             pass
-
     print(f"  {len(all_sets)} phenotypes loaded")
     return all_sets
 
 
 def load_manifest(manifest_path):
-    """Load Pan-UKB manifest; return key→description and key→trait_type mappings."""
     datam = pd.read_csv(manifest_path, sep='\t')
     datam['idx'] = datam.aws_link.apply(
         lambda x: x.replace(
             'https://pan-ukb-us-east-1.s3.amazonaws.com/sumstats_flat_files/', '')
         .replace('.tsv.bgz', ''))
-
     key2desc = dict(zip(datam['idx'], datam['description']))
     for k in key2desc:
         if str(key2desc[k]) == 'nan':
             key2desc[k] = k
-
     key2type = dict(zip(datam['idx'], datam['trait_type']))
     return key2desc, key2type
 
 
 def rename_labels(df, mapping, max_len=50):
-    """Rename index/columns using mapping, truncating long names."""
-    new_cols = [str(mapping.get(c, c)) for c in df.columns]
-    new_idx = [str(mapping.get(i, i)) for i in df.index]
-    new_cols = [n[:max_len] + '...' if len(n) > max_len else n for n in new_cols]
-    new_idx = [n[:max_len] + '...' if len(n) > max_len else n for n in new_idx]
+    """Rename index/columns; also return display→key dict for back-lookup."""
+    new_cols, new_idx = [], []
+    display2key = {}
+    for k in df.columns:
+        desc = str(mapping.get(k, k))
+        disp = desc[:max_len] + '...' if len(desc) > max_len else desc
+        new_cols.append(disp)
+        display2key[disp] = k
+    for k in df.index:
+        desc = str(mapping.get(k, k))
+        disp = desc[:max_len] + '...' if len(desc) > max_len else desc
+        new_idx.append(disp)
+        display2key[disp] = k
     df_out = df.copy()
     df_out.columns = new_cols
     df_out.index = new_idx
-    return df_out
+    return df_out, display2key
 
 
 def make_custom_greens():
-    """Custom green colormap: white → green (first bin forced to white)."""
     greens = sns.color_palette("Greens", as_cmap=True)
     new_colors = greens(np.linspace(0, 1, 256))
     new_colors[:1, :] = np.array([1, 1, 1, 1])
@@ -142,6 +138,38 @@ def trait_type_color(trait_type):
     return TRAIT_TYPE_COLORS.get(str(trait_type).lower(), DEFAULT_TRAIT_COLOR)
 
 
+def color_ticklabels(ax_obj, display2key, key2type, axis='y', bbox_alpha=0.75):
+    """Apply colored backgrounds to tick labels based on trait type."""
+    get_fn = ax_obj.get_yticklabels if axis == 'y' else ax_obj.get_xticklabels
+    for label in get_fn():
+        text = label.get_text()
+        key = display2key.get(text, text)
+        c = trait_type_color(key2type.get(key, ''))
+        label.set_bbox({'facecolor': c, 'edgecolor': 'none',
+                        'boxstyle': 'round,pad=0.3', 'alpha': bbox_alpha})
+
+
+def trait_type_legend(ax_obj, key2type, keys_in_plot, fontsize=8.5):
+    """Add trait-type legend to axes."""
+    present = set(str(key2type.get(k, '')).lower() for k in keys_in_plot)
+    elements = [Patch(facecolor=col, edgecolor='#AAAAAA', linewidth=0.5,
+                      label=cat.capitalize())
+                for cat, col in TRAIT_TYPE_COLORS.items()
+                if cat in present]
+    if elements:
+        ax_obj.legend(handles=elements, loc='upper right',
+                      fontsize=fontsize, title='Trait type',
+                      title_fontsize=fontsize + 1,
+                      frameon=True, fancybox=True,
+                      framealpha=0.93, edgecolor='#CCCCCC')
+
+
+def panel_label(ax_obj, letter, fontsize=20):
+    """Place bold panel letter outside top-left corner of axes."""
+    ax_obj.text(-0.07, 1.02, letter, transform=ax_obj.transAxes,
+                fontsize=fontsize, fontweight='bold', va='bottom', ha='right')
+
+
 # ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
@@ -150,32 +178,43 @@ def main():
     os.makedirs(args.out_dir, exist_ok=True)
     cmap = make_custom_greens()
 
-    # ---- Load data ----
+    # ---- Load ----
     print("Loading GWAS-on-GWAS results...")
     all_sets = load_results(args.results_dir)
-
     print("Loading manifest...")
     key2desc, key2type = load_manifest(args.manifest)
 
-    # Build full square matrix
     pvals_data = pd.DataFrame(all_sets).fillna(0)
     pvals_data = make_square_matrix(pvals_data)
     full_reordered = reorder_by_clustering(pvals_data)
-
-    # Bonferroni threshold for "significant" pair
     threshold = -np.log10(0.05 / (pvals_data.shape[0] ** 2))
 
     # ==================================================================
-    # Supplementary Figure 9: full continuous heatmap with readable names
+    # Supplementary Figure 9: full heatmap, consistent with Figure 4 style
     # ==================================================================
-    print("\nGenerating Supplementary Figure 9 (full continuous heatmap)...")
-    supp_named = rename_labels(full_reordered, key2desc, max_len=55)
-    fig, ax = plt.subplots(figsize=(36, 38))
-    sns.heatmap(supp_named, cmap=cmap,
-                xticklabels=supp_named.columns,
-                yticklabels=supp_named.index, ax=ax)
-    ax.tick_params(axis='both', labelsize=7)
-    plt.tight_layout()
+    print("\nGenerating Supplementary Figure 9 (full heatmap)...")
+    full_plot = full_reordered.copy()
+    np.fill_diagonal(full_plot.values, 0)
+    full_keys = list(full_reordered.index)
+
+    flat_full = full_plot.values[full_plot.values > 0]
+    vmax_full = np.percentile(flat_full, 95) if len(flat_full) > 0 else None
+
+    supp_named, d2k_full = rename_labels(full_plot, key2desc, max_len=55)
+
+    fig, ax = plt.subplots(figsize=(50, 50))
+    sns.heatmap(supp_named, cmap=cmap, square=True,
+                vmin=0, vmax=vmax_full,
+                xticklabels=True, yticklabels=True, ax=ax,
+                linewidths=0.04, linecolor='#F5F5F5',
+                cbar_kws={'shrink': 0.22, 'aspect': 30, 'pad': 0.02,
+                          'label': '$-\\log_{10}$(p-value)'})
+    ax.tick_params(axis='x', labelsize=8, rotation=90)
+    ax.tick_params(axis='y', labelsize=8)
+    color_ticklabels(ax, d2k_full, key2type, axis='y', bbox_alpha=0.65)
+    color_ticklabels(ax, d2k_full, key2type, axis='x', bbox_alpha=0.65)
+    trait_type_legend(ax, key2type, full_keys, fontsize=10)
+
     for fmt in ['pdf', 'png']:
         fig.savefig(os.path.join(args.out_dir, f'SuppFig9_heatmap_full.{fmt}'),
                     bbox_inches='tight', dpi=150)
@@ -184,80 +223,60 @@ def main():
 
     # ==================================================================
     # Select top phenotypes for Panel A
+    # Criterion: phenotypes with the most significant cross-trait pairs
+    # (Bonferroni q < 0.05 on pairwise matrix)
     # ==================================================================
     sig_counts = (pvals_data > threshold).sum(axis=1)
     top_phenos = sig_counts.nlargest(args.top_n).index.tolist()
-
     if len(top_phenos) < 5:
-        print(f"  WARNING: Only {len(top_phenos)} phenotypes above threshold; "
-              f"falling back to top-{args.top_n} by total enrichment score.")
+        print(f"  WARNING: falling back to top-{args.top_n} by total score")
         top_phenos = pvals_data.sum(axis=1).nlargest(args.top_n).index.tolist()
 
     sub_matrix = pvals_data.loc[top_phenos, top_phenos]
     sub_reordered = reorder_by_clustering(sub_matrix)
-    print(f"  Selected {len(top_phenos)} phenotypes for Panel A")
+    print(f"  Selected {len(top_phenos)} phenotypes for Panel A "
+          f"(min sig pairs: {int(sig_counts[top_phenos].min())}, "
+          f"max: {int(sig_counts[top_phenos].max())})")
+
+    sub_plot = sub_reordered.copy()
+    np.fill_diagonal(sub_plot.values, 0)
+
+    flat_sub = sub_plot.values[sub_plot.values > 0]
+    vmax_sub = np.percentile(flat_sub, 95) if len(flat_sub) > 0 else None
+
+    sub_named, d2k_sub = rename_labels(sub_plot, key2desc, max_len=45)
+    original_keys = list(sub_reordered.index)
 
     # ==================================================================
-    # Figure 4: multi-panel (A = heatmap, B = scatter)
+    # Figure 4: Panel A (heatmap) + Panel B (scatter)
     # ==================================================================
     print("\nGenerating Figure 4 (multi-panel)...")
 
-    fig = plt.figure(figsize=(26, 18))
-    gs = gridspec.GridSpec(1, 2, width_ratios=[2.8, 1], wspace=0.35)
+    fig = plt.figure(figsize=(26, 14))
+    gs = gridspec.GridSpec(1, 2, width_ratios=[2.2, 1], wspace=0.38)
 
-    # --- Panel A: heatmap with category color strips -----------------
-    gs_left = gridspec.GridSpecFromSubplotSpec(
-        2, 2, subplot_spec=gs[0],
-        height_ratios=[0.03, 1], width_ratios=[0.03, 1],
-        hspace=0.02, wspace=0.02)
-
-    row_colors = [trait_type_color(key2type.get(k, ''))
-                  for k in sub_reordered.index]
-    col_colors = [trait_type_color(key2type.get(k, ''))
-                  for k in sub_reordered.columns]
-
-    # Top color strip (columns)
-    ax_top = fig.add_subplot(gs_left[0, 1])
-    for i, c in enumerate(col_colors):
-        ax_top.add_patch(plt.Rectangle((i, 0), 1, 1, facecolor=c, edgecolor='none'))
-    ax_top.set_xlim(0, len(col_colors))
-    ax_top.set_ylim(0, 1)
-    ax_top.axis('off')
-
-    # Left color strip (rows)
-    ax_left = fig.add_subplot(gs_left[1, 0])
-    n_rows = len(row_colors)
-    for i, c in enumerate(row_colors):
-        ax_left.add_patch(plt.Rectangle((0, n_rows - 1 - i), 1, 1,
-                                        facecolor=c, edgecolor='none'))
-    ax_left.set_xlim(0, 1)
-    ax_left.set_ylim(0, n_rows)
-    ax_left.axis('off')
-
-    # Main heatmap
-    ax_heat = fig.add_subplot(gs_left[1, 1])
-    sub_named = rename_labels(sub_reordered, key2desc, max_len=45)
-    sns.heatmap(sub_named, cmap=cmap,
-                xticklabels=sub_named.columns,
-                yticklabels=sub_named.index, ax=ax_heat,
-                cbar_kws={'shrink': 0.6, 'label': '$-\\log_{10}$(p-value)'})
+    # --- Panel A ---
+    ax_heat = fig.add_subplot(gs[0])
+    sns.heatmap(sub_named, cmap=cmap, square=True,
+                vmin=0, vmax=vmax_sub,
+                xticklabels=True, yticklabels=True, ax=ax_heat,
+                linewidths=0.15, linecolor='white',
+                cbar_kws={'shrink': 0.42, 'aspect': 25, 'pad': 0.02,
+                          'label': '$-\\log_{10}$(p-value)'})
     ax_heat.tick_params(axis='x', labelsize=9, rotation=90)
     ax_heat.tick_params(axis='y', labelsize=9)
-    ax_heat.set_title('A', fontsize=22, fontweight='bold', loc='left', pad=12)
 
-    # Trait-type legend (only categories present in the subset)
-    present_types = set(str(key2type.get(k, '')).lower()
-                        for k in sub_reordered.index)
-    legend_elements = [Patch(facecolor=col, label=cat.capitalize())
-                       for cat, col in TRAIT_TYPE_COLORS.items()
-                       if cat in present_types]
-    if legend_elements:
-        ax_heat.legend(handles=legend_elements, loc='upper left',
-                       bbox_to_anchor=(0, -0.02), ncol=3, fontsize=9,
-                       title='Trait type', title_fontsize=10,
-                       frameon=True, fancybox=True)
+    # Color label backgrounds
+    color_ticklabels(ax_heat, d2k_sub, key2type, axis='y')
+    color_ticklabels(ax_heat, d2k_sub, key2type, axis='x')
 
-    # --- Panel B: scatter (genetic correlation vs LSEA enrichment) ---
+    # Trait-type legend (upper-right — sparse area of heatmap)
+    trait_type_legend(ax_heat, key2type, original_keys)
+
+    # Panel label outside axes
+    panel_label(ax_heat, 'A')
+
+    # --- Panel B: square scatter ---
     ax_scat = fig.add_subplot(gs[1])
 
     gen_corr_data = pd.read_csv(args.corr_file, sep='\t')
@@ -268,24 +287,29 @@ def main():
             continue
         if ci not in pvals_data.index or cj not in pvals_data.columns:
             continue
-        val = pvals_data.at[ci, cj]
         gc_list.append(row.entry)
-        lsea_list.append(val)
+        lsea_list.append(pvals_data.at[ci, cj])
 
-    # y-axis: log10(-log10(p)) to compress the range
     y_vals = [np.log10(x) if x > 0 else 0 for x in lsea_list]
     ax_scat.scatter(gc_list, y_vals,
-                    alpha=0.4, s=20, color='#CD853F',
-                    edgecolors='#8B6914', linewidths=0.3)
-    ax_scat.set_xlabel('Genetic Correlation', fontsize=13)
-    ax_scat.set_ylabel('$\\log_{10}(-\\log_{10}$ p-value$)$', fontsize=13)
-    ax_scat.set_title('B', fontsize=22, fontweight='bold', loc='left', pad=12)
-    ax_scat.tick_params(labelsize=11)
+                    alpha=0.35, s=10, color='#D4A574',
+                    edgecolors='#A0784C', linewidths=0.2,
+                    rasterized=True)
+    ax_scat.set_xlabel('Genetic Correlation', fontsize=12)
+    ax_scat.set_ylabel('$\\log_{10}(-\\log_{10}$ p-value$)$', fontsize=12)
+    ax_scat.tick_params(labelsize=10)
+    ax_scat.set_box_aspect(1)   # square axes box
+    ax_scat.grid(True, alpha=0.15, linewidth=0.5)
+    ax_scat.set_axisbelow(True)
+    ax_scat.spines[['top', 'right']].set_visible(False)
 
-    # Significance threshold line
     if threshold > 0:
-        ax_scat.axhline(y=np.log10(threshold), color='red',
-                        linestyle='--', linewidth=0.8, alpha=0.6)
+        thr_y = np.log10(threshold)
+        ax_scat.axhline(y=thr_y, color='#CC4444',
+                        linestyle='--', linewidth=0.8, alpha=0.55,
+                        label='Bonferroni threshold')
+
+    panel_label(ax_scat, 'B')
 
     for fmt in ['pdf', 'png']:
         dpi = 150 if fmt == 'pdf' else 300

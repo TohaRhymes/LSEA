@@ -31,7 +31,9 @@ def parse_args():
     p.add_argument("--q_threshold", type=float, default=0.05,
                    help="Q-value significance threshold (default: 0.05)")
     p.add_argument("--top_n", type=int, default=30,
-                   help="Number of top gene sets to show per category (default: 30)")
+                   help="Maximum gene sets to display per category (default: 30)")
+    p.add_argument("--min_phenos", type=int, default=2,
+                   help="Min phenotypes to include a gene set in bars (default: 2)")
     return p.parse_args()
 
 
@@ -93,14 +95,15 @@ def main():
         ('Blood Cell Markers', COLORS[0], 'BCM'),
         ('Genotype-Tissue Expression', COLORS[1], 'GTE'),
     ]):
-        df = pd.DataFrame(final_dict_result[cat_name][:args.top_n],
-                          columns=['geneset', 'hits'])
+        df_all = pd.DataFrame(final_dict_result[cat_name], columns=['geneset', 'hits'])
+        df = df_all[df_all['hits'] >= args.min_phenos].head(args.top_n).copy()
         df['geneset'] = df['geneset'].str.replace('_', ' ').str.title()
         sns.barplot(y='geneset', x='hits', data=df, color=color,
                     edgecolor='black', ax=ax)
         ax.set_xlabel('Number of associated phenotypes', fontsize=14)
         ax.set_ylabel('')
-        ax.set_title(f'{cat_name}\n(top {min(args.top_n, len(df))} gene sets)',
+        ax.set_title(f'{cat_name}\n'
+                     f'(≥{args.min_phenos} phenotypes; top {len(df)} shown)',
                      fontsize=16, fontweight='bold')
         ax.xaxis.set_label_position('top')
         ax.xaxis.tick_top()
@@ -116,8 +119,8 @@ def main():
     print("\nGenerating supplementary figures (C2, GO)...")
     for cat_name, color, sname in zip(NAMES[2:], COLORS[2:], SHORT_NAMES[2:]):
         fig, ax = plt.subplots(1, 1, figsize=(12, 10), constrained_layout=True)
-        df = pd.DataFrame(final_dict_result[cat_name][:args.top_n],
-                          columns=['geneset', 'hits'])
+        df_all = pd.DataFrame(final_dict_result[cat_name], columns=['geneset', 'hits'])
+        df = df_all[df_all['hits'] >= args.min_phenos].head(args.top_n).copy()
         df['geneset'] = df['geneset'].str.replace('_', ' ')
         df['geneset'] = df['geneset'].apply(
             lambda x: x[:60] + '...' if len(x) > 60 else x)
@@ -125,7 +128,8 @@ def main():
                     edgecolor='black', ax=ax)
         ax.set_xlabel('Number of associated phenotypes', fontsize=14)
         ax.set_ylabel('')
-        ax.set_title(f'{cat_name}\n(top {min(args.top_n, len(df))} gene sets)',
+        ax.set_title(f'{cat_name}\n'
+                     f'(≥{args.min_phenos} phenotypes; top {len(df)} shown)',
                      fontsize=16, fontweight='bold')
         ax.xaxis.set_label_position('top')
         ax.xaxis.tick_top()
