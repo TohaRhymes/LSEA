@@ -18,8 +18,11 @@ node_modules/
 Rplots.pdf
 
 # Result data files (keep READMEs only)
-results/**/*.csv
-results/**/*.tsv
+tests/results/**/*.csv
+tests/results/**/*.tsv
 
 # Case study results (local-only, not for GitHub)
-results/case_study_o15/
+tests/results/case_study_o15/
+
+# Article figures (generated, not for GitHub)
+tests/results/article_figures/

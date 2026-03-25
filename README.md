@@ -36,10 +36,10 @@ There are two main modes:
 #### **A. Using a single BED + GMT file**
 ```bash
 python3 universe_generator.py \
-    -v ./data/positions.tsv \
-    -ft ./data/gencode_formatted.bed ./data/c2.all.v7.0.symbols.gmt \
+    -v ./tests/data/positions.tsv \
+    -ft ./tests/data/gencode_formatted.bed ./tests/data/c2.all.v7.0.symbols.gmt \
     -i 100000 \
-    -o ./data/universe.json
+    -o ./tests/data/universe.json
 ```
 - `-v`/`--variants`: TSV file with at least three columns: chromosome, position, and variant ID (must be unique).
 - `-ft`/`--features`: BED file with all features and GMT file with gene set definitions.
@@ -49,10 +49,10 @@ python3 universe_generator.py \
 #### **B. Using a directory of per-set BED files**
 ```bash
 python3 universe_generator.py \
-    -v ./data/positions.tsv \
-    -ffdir ./data/bed_sets/ \
+    -v ./tests/data/positions.tsv \
+    -ffdir ./tests/data/bed_sets/ \
     -i 100000 \
-    -o ./data/universe_dir.json
+    -o ./tests/data/universe_dir.json
 ```
 - `-ffdir`/`--feature_files_dir`: Directory with one BED file per feature set.
 
@@ -73,8 +73,8 @@ Once you have a universe file, you can run LSEA on your GWAS summary statistics:
 
 ```bash
 python3 LSEA_2.4.py \
-    --input ./data/in.tsv \
-    --universe ./data/universe.json \
+    --input ./tests/data/in.tsv \
+    --universe ./tests/data/universe.json \
     --plink_dir <plink_folder_path> \
     --bfile <plink_prefix> \
     --out ./results_lsea
@@ -123,12 +123,12 @@ python3 LSEA_2.4.py --help
 
 1. **Generate universe:**
    ```bash
-   python3 universe_generator.py -v ./data/positions.tsv -ft ./data/gencode_formatted.bed ./data/c2.all.v7.0.symbols.gmt -i 100000 -o ./data/universe.json
+   python3 universe_generator.py -v ./tests/data/positions.tsv -ft ./tests/data/gencode_formatted.bed ./tests/data/c2.all.v7.0.symbols.gmt -i 100000 -o ./tests/data/universe.json
    ```
 
 2. **Run LSEA:**
    ```bash
-   python3 LSEA_2.4.py --input ./data/in.tsv --universe ./data/universe.json --plink_dir /path/to/plink --bfile /path/to/genotypes --out ./results_lsea
+   python3 LSEA_2.4.py --input ./tests/data/in.tsv --universe ./tests/data/universe.json --plink_dir /path/to/plink --bfile /path/to/genotypes --out ./results_lsea
    ```
 
 ---
