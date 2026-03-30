@@ -6,7 +6,7 @@ const path = require('path');
     args: ['--no-sandbox', '--disable-setuid-sandbox', '--font-render-hinting=none']
   });
   const page = await browser.newPage();
-  await page.setViewport({ width: 1360, height: 2000, deviceScaleFactor: 3 });
+  await page.setViewport({ width: 1600, height: 2000, deviceScaleFactor: 3 });
   const htmlPath = path.resolve(__dirname, 'figure1.html');
   await page.goto(`file://${htmlPath}`, { waitUntil: 'networkidle0' });
   await new Promise(r => setTimeout(r, 500));

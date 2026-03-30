@@ -1,40 +1,61 @@
 #!/usr/bin/env python3
 """
-Compile LSEA + MAGMA + PASCAL results for O15_HYPTENSPREG case study.
+Compile LSEA + MAGMA + PASCAL results for a FinnGen case study phenotype.
 
 Outputs:
-1. Per-category comparison tables (LSEA q-val vs MAGMA p-vals vs PASCAL p-val)
+1. Per-category comparison tables — all tools shown with BH-adjusted q-values
 2. Summary statistics table
 3. Highlighted biologically relevant pathways
 4. GWAS-on-GWAS cross-trait enrichment table (when --gwas_on_gwas_dir is given)
+
+P-value adjustment:
+- LSEA: q-values already BH-corrected internally (per gene set collection)
+- MAGMA: raw p-values → BH-FDR applied here, per collection per model
+- PASCAL: raw emp p-values → BH-FDR applied here, per collection
+All significance calls use q < 0.05.
 """
 
 import argparse
 import csv
+import math
 import os
 import sys
 from collections import defaultdict
 
+from statsmodels.stats.multitest import multipletests
 
-def parse_lsea_results(result_dir, category):
-    """Parse LSEA result TSV file for a given category."""
+
+def parse_lsea_results(result_dir, category, preferred_p="5e-08"):
+    """Parse LSEA result TSV file for a given category.
+
+    Prefers the standard GWAS p-cutoff (5e-08) for the comparison table;
+    falls back to any available result file.
+    """
     results = {}
 
-    # Find the result file (pattern: uni_{cat}_result_{p_cutoff}.tsv)
+    # Collect all result files for this category
+    candidates = {}
     for fname in os.listdir(result_dir):
         if fname.startswith(f"uni_{category}_result_") and fname.endswith(".tsv"):
-            filepath = os.path.join(result_dir, fname)
-            with open(filepath, "r") as f:
-                reader = csv.DictReader(f, delimiter="\t")
-                for row in reader:
-                    gene_set = row["gene_set"]
-                    results[gene_set] = {
-                        "lsea_pval": float(row["p_value"]),
-                        "lsea_qval": float(row["q_value"]),
-                        "lsea_loci": int(row["overlapping_loci"]),
-                        "lsea_sig": row["significance"],
-                    }
-            break
+            p_str = fname.replace(f"uni_{category}_result_", "").replace(".tsv", "")
+            candidates[p_str] = os.path.join(result_dir, fname)
+
+    if not candidates:
+        return results
+
+    # Prefer the standard GWAS cutoff, fall back to any available file
+    filepath = candidates.get(preferred_p) or next(iter(candidates.values()))
+
+    with open(filepath, "r") as f:
+        reader = csv.DictReader(f, delimiter="\t")
+        for row in reader:
+            gene_set = row["gene_set"]
+            results[gene_set] = {
+                "lsea_pval": float(row["p_value"]),
+                "lsea_qval": float(row["q_value"]),
+                "lsea_loci": int(row["overlapping_loci"]),
+                "lsea_sig": row["significance"],
+            }
 
     return results
 
@@ -179,10 +200,32 @@ def is_relevant(pathway_name):
     return any(kw in name_lower for kw in RELEVANT_KEYWORDS)
 
 
+def bh_correct(values_dict, pval_key, qval_key):
+    """Apply BH-FDR correction to p-values in a dict-of-dicts.
+
+    values_dict: {name: {pval_key: float, ...}, ...}
+    Adds qval_key to each inner dict. Skips NaN/missing.
+    Returns values_dict (modified in-place).
+    """
+    names = list(values_dict.keys())
+    pvals = [values_dict[n].get(pval_key, float("nan")) for n in names]
+    valid_idx = [i for i, p in enumerate(pvals) if not math.isnan(p)]
+    if valid_idx:
+        valid_p = [pvals[i] for i in valid_idx]
+        _, qvals, _, _ = multipletests(valid_p, method="fdr_bh")
+        for rank, i in enumerate(valid_idx):
+            values_dict[names[i]][qval_key] = qvals[rank]
+    return values_dict
+
+
 def main():
     parser = argparse.ArgumentParser(description="Compile case study results")
     parser.add_argument("--work_dir", required=True)
     parser.add_argument("--phenotype", required=True)
+    parser.add_argument("--lsea_prefix", default=None,
+                        help="Prefix for LSEA result dirs (default: same as --phenotype). "
+                             "E.g. pass 'O15' to find lsea_results/O15_c2/ for phenotype "
+                             "O15_HYPTENSPREG.")
     parser.add_argument("--categories", nargs="+", required=True)
     parser.add_argument("--gwas_on_gwas_dir",
                         help="Directory with UKB GWAS-on-GWAS results (O15_ukb/)")
@@ -192,6 +235,7 @@ def main():
 
     work_dir = args.work_dir
     phenotype = args.phenotype
+    lsea_prefix = args.lsea_prefix or phenotype
     categories = args.categories
 
     magma_models = ["mean", "top"]
@@ -218,7 +262,7 @@ def main():
         writer.writerow(["category", "p_cutoff", "num_loci", "annotated_loci",
                          "significant_hits", "min_qval"])
         for cat in categories:
-            result_dir = os.path.join(work_dir, "lsea_results", f"O15_{cat}")
+            result_dir = os.path.join(work_dir, "lsea_results", f"{lsea_prefix}_{cat}")
             stats = parse_lsea_stats(result_dir, cat)
             for p_cutoff, s in sorted(stats.items()):
                 writer.writerow([cat, p_cutoff, s["num_loci"], s["annotated_loci"],
@@ -230,7 +274,7 @@ def main():
     all_relevant = []
 
     for cat in categories:
-        result_dir = os.path.join(work_dir, "lsea_results", f"O15_{cat}")
+        result_dir = os.path.join(work_dir, "lsea_results", f"{lsea_prefix}_{cat}")
         if not os.path.isdir(result_dir):
             print(f"[WARN] LSEA results not found for {cat}, skipping")
             continue
@@ -248,43 +292,70 @@ def main():
                     magma[pathway] = {}
                 magma[pathway][f"magma_{model}_pval"] = vals["magma_pval"]
 
+        # BH-FDR correction for MAGMA (per model, per category)
+        for model in magma_models:
+            bh_correct(magma, f"magma_{model}_pval", f"magma_{model}_qval")
+
+        # PASCAL results for this category.
+        # New mode: per-category Entrez GMT files (e.g. pascal_results/c2_entrez_result.txt)
+        # Old mode: single default run (BIOCARTA/KEGG/REACTOME), compared only against c2.
+        pascal_cat = {}
+        pascal_cat_file = os.path.join(
+            work_dir, "pascal_results", f"{cat}_entrez_result.txt"
+        )
+        if os.path.exists(pascal_cat_file):
+            pascal_cat = parse_pascal_results(pascal_cat_file)
+        elif cat == "c2":
+            # Fallback: old-style monolithic PASCAL run
+            pascal_cat = pascal_results
+
+        # BH-FDR correction for PASCAL emp_pval
+        if pascal_cat:
+            bh_correct(pascal_cat, "pascal_emp_pval", "pascal_emp_qval")
+
+        has_pascal = bool(pascal_cat)
+
         # Merge all pathways
-        all_pathways = set(lsea.keys()) | set(magma.keys())
+        all_pathways = set(lsea.keys()) | set(magma.keys()) | set(pascal_cat.keys())
+
+        # Build column header — all tools show both raw p and BH q-value
+        header = ["pathway", "lsea_pval", "lsea_qval", "lsea_loci"]
+        for model in magma_models:
+            header += [f"magma_{model}_pval", f"magma_{model}_qval"]
+        if has_pascal:
+            header += ["pascal_emp_pval", "pascal_emp_qval", "pascal_chi2_pval"]
+        header.append("biologically_relevant")
 
         # Write comparison table
         comp_path = os.path.join(work_dir, f"{phenotype}_comparison_{cat}.tsv")
         with open(comp_path, "w") as f:
             writer = csv.writer(f, delimiter="\t")
-            header = ["pathway", "lsea_qval", "lsea_pval", "lsea_loci"]
-            for model in magma_models:
-                header.append(f"magma_{model}_pval")
-            if cat == "c2":  # PASCAL only has C2-like (KEGG/REACTOME) sets
-                header.extend(["pascal_chi2_pval", "pascal_emp_pval"])
-            header.append("biologically_relevant")
             writer.writerow(header)
 
             rows = []
             for pathway in sorted(all_pathways):
                 row = [pathway]
                 l = lsea.get(pathway, {})
-                row.append(l.get("lsea_qval", "NA"))
                 row.append(l.get("lsea_pval", "NA"))
+                row.append(l.get("lsea_qval", "NA"))
                 row.append(l.get("lsea_loci", "NA"))
 
                 m = magma.get(pathway, {})
                 for model in magma_models:
                     row.append(m.get(f"magma_{model}_pval", "NA"))
+                    row.append(m.get(f"magma_{model}_qval", "NA"))
 
-                if cat == "c2":
-                    p = pascal_results.get(pathway, {})
-                    row.append(p.get("pascal_chi2_pval", "NA"))
+                if has_pascal:
+                    p = pascal_cat.get(pathway, {})
                     row.append(p.get("pascal_emp_pval", "NA"))
+                    row.append(p.get("pascal_emp_qval", "NA"))
+                    row.append(p.get("pascal_chi2_pval", "NA"))
 
                 relevant = is_relevant(pathway)
                 row.append("*" if relevant else "")
                 rows.append(row)
 
-                if relevant and l.get("lsea_qval", 1) < 0.05:
+                if relevant and l.get("lsea_qval", 1.0) < 0.05:
                     all_relevant.append({
                         "category": cat,
                         "pathway": pathway,
@@ -292,8 +363,8 @@ def main():
                         "lsea_loci": l.get("lsea_loci"),
                     })
 
-            # Sort by LSEA q-value
-            rows.sort(key=lambda r: float(r[1]) if r[1] != "NA" else 999)
+            # Sort by LSEA q-value (col index 2)
+            rows.sort(key=lambda r: float(r[2]) if r[2] != "NA" else 999.0)
             for row in rows:
                 writer.writerow(row)
 

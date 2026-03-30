@@ -247,6 +247,7 @@ log "=== Step 6: Compile results ==="
 python3 "${LSEA_DIR}/tests/preprocessing/compile_case_study.py" \
     --work_dir "${WORK_DIR}" \
     --phenotype "${PHENOTYPE}" \
+    --lsea_prefix "O15" \
     --categories ${CATEGORIES[@]}
 
 log "=== Pipeline complete ==="

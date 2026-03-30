@@ -5,7 +5,10 @@ Figure 4:
   Panel A — Continuous heatmap of top phenotypes (by number of significant pairs),
              hierarchically clustered. Tick-label backgrounds are colored by
              trait type (matching the Figure 3 palette).
-  Panel B — Square scatter plot of genetic correlation vs LSEA enrichment.
+  Panel B — Hexagonal density plot of genetic correlation vs LSEA enrichment
+             (FDR-adjusted q-values).
+  Panel C — Violin plot of genetic correlations for significant vs
+             non-significant enrichment pairs.
 
 Supplementary Figure 5:
   Full 150x129 continuous heatmap with readable names and trait-type label coloring.
@@ -92,19 +95,22 @@ def reorder_by_clustering(df):
 def load_results(results_dir):
     matching_dirs = glob.glob(os.path.join(results_dir, '*_ukb'))
     print(f"  {len(matching_dirs)} phenotype directories found")
-    all_sets = {}
+    all_pvals = {}
+    all_qvals = {}
     for cur_dir in tqdm(matching_dirs, desc="Loading results"):
         pvals_files = glob.glob(
             os.path.join(cur_dir, "*_result_7.479176476853146e-09.tsv"))
         try:
             data = pd.read_csv(pvals_files[0], sep='\t').set_index('gene_set')
             key = os.path.basename(cur_dir).replace('_ukb', '')
-            all_sets[key] = data['p_value'].apply(
+            all_pvals[key] = data['p_value'].apply(
                 lambda x: -np.log10(x) if x > 0 else 0)
+            all_qvals[key] = data['q_value'].apply(
+                lambda x: -np.log10(max(x, 1e-300)) if x >= 0 else 0)
         except (IndexError, KeyError):
             pass
-    print(f"  {len(all_sets)} phenotypes loaded")
-    return all_sets
+    print(f"  {len(all_pvals)} phenotypes loaded")
+    return all_pvals, all_qvals
 
 
 def load_manifest(manifest_path):
@@ -191,7 +197,7 @@ def panel_label(ax_obj, letter, fontsize=20):
 def save_fig(fig, out_dir, basename, dpi=300):
     for fmt in ['pdf', 'png']:
         fig.savefig(os.path.join(out_dir, f'{basename}.{fmt}'),
-                    bbox_inches='tight', dpi=dpi)
+                    bbox_inches='tight', pad_inches=0.3, dpi=dpi)
     plt.close(fig)
     print(f"  Saved {basename}.pdf/png")
 
@@ -207,12 +213,14 @@ def main():
 
     # ---- Load ----
     print("Loading GWAS-on-GWAS results...")
-    all_sets = load_results(args.results_dir)
+    all_pvals, all_qvals = load_results(args.results_dir)
     print("Loading manifest...")
     key2desc, key2type = load_manifest(args.manifest)
 
-    pvals_data = pd.DataFrame(all_sets).fillna(0)
+    pvals_data = pd.DataFrame(all_pvals).fillna(0)
     pvals_data = make_square_matrix(pvals_data)
+    qvals_data = pd.DataFrame(all_qvals).fillna(0)
+    qvals_data = make_square_matrix(qvals_data)
     full_reordered = reorder_by_clustering(pvals_data)
     threshold = -np.log10(0.05 / (pvals_data.shape[0] ** 2))
 
@@ -234,18 +242,33 @@ def main():
                 vmin=0, vmax=vmax_full,
                 xticklabels=True, yticklabels=True, ax=ax,
                 linewidths=0.15, linecolor='white',
-                cbar_kws={'shrink': 0.22, 'aspect': 30, 'pad': 0.008,
+                cbar_kws={'shrink': 0.35, 'aspect': 30, 'pad': 0.02,
                           'label': '$-\\log_{10}$(p-value)'})
-    # Make colorbar label and ticks larger
+    # Scale fonts for 55x55 figure
     cbar = ax.collections[0].colorbar
-    cbar.ax.tick_params(labelsize=14)
-    cbar.set_label('$-\\log_{10}$(p-value)', fontsize=15)
-    ax.tick_params(axis='x', labelsize=13, rotation=90)
-    ax.tick_params(axis='y', labelsize=13)
+    cbar.ax.tick_params(labelsize=28)
+    cbar.set_label('$-\\log_{10}$(p-value)', fontsize=30)
+    ax.tick_params(axis='x', labelsize=26, rotation=90)
+    ax.tick_params(axis='y', labelsize=26)
     color_ticklabels(ax, d2k_full, key2type, axis='y', bbox_alpha=0.75)
     color_ticklabels(ax, d2k_full, key2type, axis='x', bbox_alpha=0.75)
 
-    add_trait_legend(fig, key2type, full_keys, fontsize=14)
+    # Legend: vertical, positioned left of the heatmap
+    present = set(str(key2type.get(k, '')).lower() for k in full_keys)
+    legend_patches = [Patch(facecolor=col, edgecolor='#AAAAAA', linewidth=0.5,
+                            label=cat.capitalize())
+                      for cat, col in TRAIT_TYPE_COLORS.items()
+                      if cat in present]
+    if legend_patches:
+        fig.legend(handles=legend_patches,
+                   loc='lower left',
+                   bbox_to_anchor=(-0.03, 0.04),
+                   ncol=1,
+                   fontsize=26,
+                   title='Trait type',
+                   title_fontsize=28,
+                   frameon=True, fancybox=True,
+                   framealpha=0.95, edgecolor='#BBBBBB')
 
     save_fig(fig, args.out_dir, 'SuppFig5_heatmap_full', dpi=150)
 
@@ -274,15 +297,15 @@ def main():
     original_keys = list(sub_reordered.index)
 
     # ==================================================================
-    # Figure 4: Panel A (heatmap) + Panel B (scatter)
+    # Figure 4: Panel A (heatmap) + Panel B (hexbin) + Panel C (violin)
     # ==================================================================
     print("\nGenerating Figure 4 (multi-panel)...")
 
-    fig = plt.figure(figsize=(20, 12))
-    gs = gridspec.GridSpec(1, 2, width_ratios=[1.3, 1], wspace=0.18)
+    fig = plt.figure(figsize=(24, 14))
+    gs_main = gridspec.GridSpec(1, 2, width_ratios=[1.2, 1], wspace=0.25)
 
     # --- Panel A ---
-    ax_heat = fig.add_subplot(gs[0])
+    ax_heat = fig.add_subplot(gs_main[0])
     sns.heatmap(sub_named, cmap=cmap, square=True,
                 vmin=0, vmax=vmax_sub,
                 xticklabels=True, yticklabels=True, ax=ax_heat,
@@ -298,47 +321,148 @@ def main():
     color_ticklabels(ax_heat, d2k_sub, key2type, axis='x')
     panel_label(ax_heat, 'A', fontsize=22)
 
-    # --- Panel B: scatter ---
-    ax_scat = fig.add_subplot(gs[1])
+    # --- Right column: Panel B (hexbin) above Panel C (horizontal violin) ---
+    from matplotlib.colors import LogNorm
+    gs_right = gridspec.GridSpecFromSubplotSpec(
+        2, 1, subplot_spec=gs_main[1], height_ratios=[2.8, 1], hspace=0.15)
+    ax_hex = fig.add_subplot(gs_right[0])
+    ax_viol = fig.add_subplot(gs_right[1], sharex=ax_hex)
 
+    # --- Panel B main: hexbin (genetic correlation vs q-value) ---
     gen_corr_data = pd.read_csv(args.corr_file, sep='\t')
-    gc_list, lsea_list = [], []
+    gc_list, qval_list = [], []
     for _, row in gen_corr_data.iterrows():
         ci, cj = row.i_joined, row.j_joined
         if ci == cj:
             continue
-        if ci not in pvals_data.index or cj not in pvals_data.columns:
+        if ci not in qvals_data.index or cj not in qvals_data.columns:
             continue
         gc_list.append(row.entry)
-        lsea_list.append(pvals_data.at[ci, cj])
+        qval_list.append(qvals_data.at[ci, cj])
 
-    y_vals = [np.log10(x) if x > 0 else 0 for x in lsea_list]
-    ax_scat.scatter(gc_list, y_vals,
-                    alpha=0.4, s=45, color='#D4A574',
-                    edgecolors='#A0784C', linewidths=0.5,
-                    rasterized=True)
-    ax_scat.set_xlabel('Genetic Correlation')
-    ax_scat.set_ylabel('$\\log_{10}(-\\log_{10}$ p-value$)$')
-    ax_scat.set_title('Genetic correlation vs LSEA enrichment',
-                      fontweight='bold', pad=12)
-    ax_scat.set_box_aspect(1)
-    ax_scat.grid(True, alpha=0.15, linewidth=0.5)
-    ax_scat.set_axisbelow(True)
-    ax_scat.spines[['top', 'right']].set_visible(False)
+    gc_arr = np.array(gc_list)
+    qval_arr = np.array(qval_list)
+    # y = log10(-log10(q)) — double-log scale
+    y_vals = np.array([np.log10(x) if x > 0 else 0 for x in qval_arr])
 
-    if threshold > 0:
-        thr_y = np.log10(threshold)
-        ax_scat.axhline(y=thr_y, color='#CC4444',
-                        linestyle='--', linewidth=1.0, alpha=0.6,
-                        label='Bonferroni threshold')
+    # Pastel-bright hex colormap (white → light lavender → deep rose)
+    hex_cmap = LinearSegmentedColormap.from_list('pastel_hex', [
+        '#F8F0F8', '#E8C8E0', '#D4A0C8', '#C070A0', '#8C3070', '#4A1040'])
+    hb = ax_hex.hexbin(gc_arr, y_vals, gridsize=40, cmap=hex_cmap,
+                       mincnt=1, norm=LogNorm(), rasterized=True)
+    # Inset colorbar inside the plot area (lower-right, away from data)
+    cax = ax_hex.inset_axes([0.85, 0.03, 0.03, 0.35])
+    cb = fig.colorbar(hb, cax=cax)
+    cb.set_label('Count', fontsize=9)
+    cb.ax.tick_params(labelsize=8)
+    ax_hex.set_xlabel('Genetic Correlation')
+    ax_hex.set_ylabel('$\\log_{10}(-\\log_{10}$ q-value$)$')
+    ax_hex.set_title('Genetic correlation vs enrichment',
+                      fontweight='bold', pad=10, fontsize=13)
+    ax_hex.grid(True, alpha=0.15, linewidth=0.5)
+    ax_hex.set_axisbelow(True)
+    ax_hex.spines[['top', 'right']].set_visible(False)
+    # Zero-correlation reference (visual link to Panel C)
+    ax_hex.axvline(x=0, color='#888888', linestyle=':', linewidth=0.6, alpha=0.4)
 
-    panel_label(ax_scat, 'B', fontsize=22)
+    # Threshold line at q = 0.05
+    thr_q = np.log10(-np.log10(0.05))
+    ax_hex.axhline(y=thr_q, color='#CC4444',
+                    linestyle='--', linewidth=1.2, alpha=0.7,
+                    label='q = 0.05')
+    ax_hex.legend(fontsize=10, loc='upper left')
+    panel_label(ax_hex, 'B', fontsize=22)
+
+    # --- Panel C: horizontal violin below hex (shared x-axis = genetic correlation) ---
+    # Split by enrichment significance: shows GC distribution for sig vs non-sig pairs
+    qval_threshold = -np.log10(0.05)  # 1.301 in -log10 space
+    sig_mask = qval_arr > qval_threshold
+    n_sig = int(sig_mask.sum())
+    n_nonsig = len(sig_mask) - n_sig
+
+    sig_label  = f'q < 0.05 (n={n_sig:,})'
+    nsig_label = f'q ≥ 0.05 (n={n_nonsig:,})'
+    violin_data = pd.DataFrame({
+        'gc': gc_arr,
+        'Group': np.where(sig_mask, sig_label, nsig_label)
+    })
+    order = [sig_label, nsig_label]
+    sns.violinplot(data=violin_data, x='gc', y='Group',
+                   ax=ax_viol, order=order, hue='Group', hue_order=order,
+                   palette=['#D45B7A', '#7BA7CC'],
+                   inner=None, cut=0, linewidth=0.8, legend=False,
+                   orient='h', saturation=0.85, density_norm='width')
+    # Overlay real boxplots (thick, visible, clipped to IQR±1.5*IQR)
+    for i, grp in enumerate(order):
+        subset = violin_data[violin_data['Group'] == grp]['gc']
+        bp = ax_viol.boxplot(subset, positions=[i], vert=False, widths=0.22,
+                             patch_artist=True, manage_ticks=False,
+                             whis=[5, 95],  # 5th-95th percentile (stays within violin)
+                             boxprops=dict(facecolor='white', edgecolor='#111111',
+                                           linewidth=1.0, alpha=0.9),
+                             medianprops=dict(color='#111111', linewidth=2.5),
+                             whiskerprops=dict(color='#111111', linewidth=1.0),
+                             capprops=dict(color='#111111', linewidth=1.0),
+                             flierprops=dict(marker='', markersize=0))
+    ax_viol.set_xlabel('Genetic Correlation', fontsize=11)
+    ax_viol.set_ylabel('')
+    ax_viol.tick_params(axis='y', labelsize=9)
+    ax_viol.spines[['top', 'right']].set_visible(False)
+    ax_viol.axvline(x=0, color='#888888', linestyle=':', linewidth=0.6, alpha=0.5)
+    # Align x-axes: hex keeps its x-label hidden, violin shows it
+    ax_hex.tick_params(axis='x', labelbottom=False)
+    ax_hex.set_xlabel('')
+    # Force identical x-limits
+    xlim = ax_hex.get_xlim()
+    ax_viol.set_xlim(xlim)
+    panel_label(ax_viol, 'C', fontsize=20)
 
     add_trait_legend(fig, key2type, original_keys, fontsize=11)
 
     save_fig(fig, args.out_dir, 'Figure4_gwas_on_gwas')
 
-    print(f"\nDone! ({len(gc_list)} scatter points)")
+    print(f"\nDone! ({len(gc_list)} points, {n_sig} enriched at q<0.05)")
+
+    # ==================================================================
+    # Supplementary heatmaps: trait-type subsets (biomarkers, continuous)
+    # ==================================================================
+    for trait_filter in ['biomarkers', 'continuous']:
+        subset_phenos = [k for k in pvals_data.index
+                         if str(key2type.get(k, '')).lower() == trait_filter]
+        if len(subset_phenos) < 3:
+            print(f"\n  Skipping {trait_filter} heatmap (only {len(subset_phenos)} phenotypes)")
+            continue
+
+        print(f"\nGenerating supplementary heatmap: {trait_filter} "
+              f"({len(subset_phenos)} phenotypes)...")
+        sub_tf = pvals_data.loc[subset_phenos, subset_phenos]
+        sub_tf = reorder_by_clustering(sub_tf)
+        sub_tf_plot = sub_tf.copy()
+        np.fill_diagonal(sub_tf_plot.values, 0)
+
+        flat_tf = sub_tf_plot.values[sub_tf_plot.values > 0]
+        vmax_tf = np.percentile(flat_tf, 95) if len(flat_tf) > 0 else None
+
+        max_len = 55 if len(subset_phenos) > 30 else 45
+        sub_tf_named, d2k_tf = rename_labels(sub_tf_plot, key2desc, max_len=max_len)
+
+        n = len(subset_phenos)
+        figsize = max(8, n * 0.55)
+        fig_tf, ax_tf = plt.subplots(figsize=(figsize, figsize))
+        sns.heatmap(sub_tf_named, cmap=cmap, square=True,
+                    vmin=0, vmax=vmax_tf,
+                    xticklabels=True, yticklabels=True, ax=ax_tf,
+                    linewidths=0.15, linecolor='white',
+                    cbar_kws={'shrink': 0.5, 'aspect': 25, 'pad': 0.02,
+                              'label': '$-\\log_{10}$(p-value)'})
+        ax_tf.set_title(f'Cross-trait enrichment ({trait_filter.capitalize()}, '
+                        f'n={n})', fontweight='bold', pad=12)
+        tick_size = 11 if n <= 30 else 9
+        ax_tf.tick_params(axis='x', labelsize=tick_size, rotation=90)
+        ax_tf.tick_params(axis='y', labelsize=tick_size)
+
+        save_fig(fig_tf, args.out_dir,
+                 f'SuppFig_heatmap_{trait_filter}', dpi=200)
 
 
 if __name__ == '__main__':
