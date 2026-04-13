@@ -49,7 +49,7 @@ NAMES = ['Blood Cell Markers', 'Genotype-Tissue Expression',
          'C2 collection from MSigDB', 'Gene ontology: cellular component',
          'Gene ontology: molecular function', 'Gene ontology: biological process']
 SHORT_NAMES = ["BCM", "GTE", "C2", "GO:CC", "GO:MF", "GO:BP"]
-COLORS = ["#C9E4DE", "#DBCDF0", "#F7D9C4", "#FAEDCB", "#F2C6DE", "#C6DEF1"]
+COLORS = ["#A5D4CA", "#C4B0E8", "#F0C5A5", "#F3E0A5", "#E8A8C8", "#A0C8E8"]
 
 # Unified plot style (shared across all figure scripts)
 STYLE = {
@@ -146,7 +146,7 @@ def main():
         df['geneset'] = df['geneset'].str.replace('_', ' ').str.title()
         total_q = len(df_all[df_all['hits'] >= args.min_phenos])
         sns.barplot(y='geneset', x='hits', data=df, color=color,
-                    edgecolor='black', ax=ax)
+                    edgecolor='#444444', ax=ax)
         ax.set_xlabel('Number of associated phenotypes')
         ax.set_ylabel('')
         ax.set_title(f'{cat_name}\n{subtitle(len(df), used_thresh, total_q)}',
@@ -163,7 +163,7 @@ def main():
 
     for ax, (cat_name, color) in zip(axes_flat, zip(NAMES, COLORS)):
         df = pd.DataFrame(final_dict_result[cat_name], columns=['geneset', 'hits'])
-        sns.histplot(df.hits, color=color, edgecolor='black', ax=ax)
+        sns.histplot(df.hits, color=color, edgecolor='#444444', ax=ax)
         ax.set_xlabel('Number of associated phenotypes')
         ax.set_ylabel('Number of gene sets')
         ax.set_title(f'{cat_name}', fontweight='bold')
@@ -184,7 +184,7 @@ def main():
         df['geneset'] = df['geneset'].apply(
             lambda x: x[:55] + '...' if len(x) > 55 else x)
         sns.barplot(y='geneset', x='hits', data=df, color=color,
-                    edgecolor='black', ax=ax)
+                    edgecolor='#444444', ax=ax)
         ax.set_xlabel('Number of associated phenotypes')
         ax.set_ylabel('')
         ax.set_title(f'{cat_name}\n{subtitle(len(df), used_thresh, total_q)}',

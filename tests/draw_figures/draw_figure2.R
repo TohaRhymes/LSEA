@@ -30,17 +30,17 @@ output_dir <- args[2]
 
 dir.create(output_dir, showWarnings = FALSE, recursive = TRUE)
 
-# --- Tool color palette (Okabe-Ito, colorblind-safe) ---
-tool_colors <- c("MAGMA: linreg" = "#E69F00",
-                 "MAGMA: mean"   = "#F0E442",
-                 "MAGMA: top"    = "#009E73",
-                 "PASCAL"        = "#56B4E9",
-                 "LSEA"          = "#CC79A7")
+# --- Tool color palette (MAGMA = purple family, PASCAL/LSEA = distinct) ---
+tool_colors <- c("MAGMA: linreg" = "#9E82C0",
+                 "MAGMA: mean"   = "#C8B0E0",
+                 "MAGMA: top"    = "#7558A0",
+                 "PASCAL"        = "#5BC0A0",
+                 "LSEA"          = "#E8887A")
 
 path_labels <- c("path_small"  = "Small\n(17 genes)",
                  "path_medium" = "Medium\n(69 genes)",
                  "path_big"    = "Large\n(199 genes)",
-                 "path_random" = "Random")
+                 "path_random" = "Random\n ")
 
 # --- Helper functions ---
 get_only_legend <- function(plot) {
@@ -74,13 +74,14 @@ shared_theme <- theme_minimal() +
     axis.text.y        = element_text(size = 11),
     axis.title.y       = element_text(size = 13),
     plot.title         = element_text(size = 14, face = "bold"),
-    legend.position    = "none"
+    legend.position    = "none",
+    plot.margin        = margin(t = 5, r = 5, b = 30, l = 5, unit = "pt")
   )
 
-make_plot <- function(data, title_text, ylab_text, show_alpha = FALSE) {
+make_plot <- function(data, title_text, ylab_text) {
   p <- ggplot(data, aes(x = path, y = score, fill = model)) +
     geom_bar(stat = "identity", position = position_dodge(0.7),
-             width = 0.6, color = "black", linewidth = 0.3) +
+             width = 0.6, color = "#444444", linewidth = 0.3) +
     geom_errorbar(aes(ymin = min, ymax = max),
                   position = position_dodge(0.7),
                   linewidth = 0.4, width = 0.15) +
@@ -90,10 +91,6 @@ make_plot <- function(data, title_text, ylab_text, show_alpha = FALSE) {
     scale_y_continuous(limits = c(0, 1.15), breaks = seq(0, 1, 0.2),
                        expand = c(0, 0)) +
     shared_theme
-  if (show_alpha) {
-    p <- p + geom_hline(yintercept = 0.05, linetype = "dashed",
-                        color = "#CC4444", alpha = 0.6, linewidth = 0.5)
-  }
   return(p)
 }
 
@@ -105,9 +102,9 @@ bin_fpr  <- prepare_data(file.path(data_dir, "binFPR_to_draw_LSEA.csv"))
 
 # --- Create 4 panels (x = pathway size, fill = tool) ---
 p1 <- make_plot(cont_tpr, "Continuous: TPR", "TPR")
-p2 <- make_plot(cont_fpr, "Continuous: FPR", "FPR", show_alpha = TRUE)
+p2 <- make_plot(cont_fpr, "Continuous: FPR", "FPR")
 p3 <- make_plot(bin_tpr,  "Binary: TPR", "TPR")
-p4 <- make_plot(bin_fpr,  "Binary: FPR", "FPR", show_alpha = TRUE)
+p4 <- make_plot(bin_fpr,  "Binary: FPR", "FPR")
 
 # --- Shared legend (horizontal, at bottom) ---
 dummy_data <- data.frame(
@@ -119,9 +116,9 @@ dummy_data <- data.frame(
 )
 legend_plot <- ggplot(dummy_data, aes(x = path, y = score, fill = model)) +
   geom_bar(stat = "identity", position = position_dodge(0.6),
-           color = "black", linewidth = 0.4) +
+           color = "#444444", linewidth = 0.4) +
   scale_fill_manual(values = tool_colors) +
-  guides(fill = guide_legend(override.aes = list(color = "black",
+  guides(fill = guide_legend(override.aes = list(color = "#444444",
                                                   linewidth = 0.5))) +
   theme(
     legend.position    = "bottom",

@@ -88,7 +88,7 @@ def main():
                            constrained_layout=True)
 
     bars = ax.barh(range(len(df)), df['neg_log10_p'],
-                   color=df['color'], edgecolor='#555555', linewidth=0.5)
+                   color=df['color'], edgecolor='#444444', linewidth=0.4)
 
     # Bold labels for significant results
     ytick_labels = []
@@ -134,7 +134,7 @@ def main():
 
     # Trait-type legend
     present = set(df['trait_type'])
-    elements = [Patch(facecolor=col, edgecolor='#AAAAAA', linewidth=0.5,
+    elements = [Patch(facecolor=col, edgecolor='#444444', linewidth=0.5,
                       label=cat.capitalize())
                 for cat, col in TRAIT_TYPE_COLORS.items()
                 if cat in present]
@@ -145,7 +145,7 @@ def main():
                   title='Trait type',
                   title_fontsize=12,
                   frameon=True, fancybox=True,
-                  framealpha=0.95, edgecolor='#BBBBBB')
+                  framealpha=0.95, edgecolor='#444444')
 
     for fmt in ['pdf', 'png']:
         fig.savefig(os.path.join(args.out_dir, f'Figure5_O15_gwas_on_gwas.{fmt}'),

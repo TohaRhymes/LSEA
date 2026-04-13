@@ -172,7 +172,7 @@ def color_ticklabels(ax_obj, display2key, key2type, axis='y', bbox_alpha=0.75):
 def add_trait_legend(fig, key2type, keys_in_plot, fontsize=11):
     """Add trait-type legend to figure (lower-left)."""
     present = set(str(key2type.get(k, '')).lower() for k in keys_in_plot)
-    elements = [Patch(facecolor=col, edgecolor='#AAAAAA', linewidth=0.5,
+    elements = [Patch(facecolor=col, edgecolor='#444444', linewidth=0.5,
                       label=cat.capitalize())
                 for cat, col in TRAIT_TYPE_COLORS.items()
                 if cat in present]
@@ -185,7 +185,7 @@ def add_trait_legend(fig, key2type, keys_in_plot, fontsize=11):
                    title='Trait type',
                    title_fontsize=fontsize + 1,
                    frameon=True, fancybox=True,
-                   framealpha=0.95, edgecolor='#BBBBBB')
+                   framealpha=0.95, edgecolor='#444444')
 
 
 def panel_label(ax_obj, letter, fontsize=20):
@@ -222,7 +222,10 @@ def main():
     qvals_data = pd.DataFrame(all_qvals).fillna(0)
     qvals_data = make_square_matrix(qvals_data)
     full_reordered = reorder_by_clustering(pvals_data)
-    threshold = -np.log10(0.05 / (pvals_data.shape[0] ** 2))
+    # Bonferroni for visualization: 150 queries × 129 targets = 19350 tests
+    n_queries = pvals_data.shape[0]
+    n_targets = len(all_pvals)  # actual number of loaded phenotypes (columns)
+    threshold = -np.log10(0.05 / (n_queries * n_targets))
 
     # ==================================================================
     # Supplementary Figure 5: full heatmap (style consistent with Fig 4A)
@@ -255,7 +258,7 @@ def main():
 
     # Legend: vertical, positioned left of the heatmap
     present = set(str(key2type.get(k, '')).lower() for k in full_keys)
-    legend_patches = [Patch(facecolor=col, edgecolor='#AAAAAA', linewidth=0.5,
+    legend_patches = [Patch(facecolor=col, edgecolor='#444444', linewidth=0.5,
                             label=cat.capitalize())
                       for cat, col in TRAIT_TYPE_COLORS.items()
                       if cat in present]
@@ -268,7 +271,7 @@ def main():
                    title='Trait type',
                    title_fontsize=28,
                    frameon=True, fancybox=True,
-                   framealpha=0.95, edgecolor='#BBBBBB')
+                   framealpha=0.95, edgecolor='#444444')
 
     save_fig(fig, args.out_dir, 'SuppFig5_heatmap_full', dpi=150)
 
@@ -426,7 +429,7 @@ def main():
     # ==================================================================
     # Supplementary heatmaps: trait-type subsets (biomarkers, continuous)
     # ==================================================================
-    for trait_filter in ['biomarkers', 'continuous']:
+    for trait_filter in ['biomarkers', 'continuous', 'categorical', 'phecode']:
         subset_phenos = [k for k in pvals_data.index
                          if str(key2type.get(k, '')).lower() == trait_filter]
         if len(subset_phenos) < 3:
@@ -447,19 +450,34 @@ def main():
         sub_tf_named, d2k_tf = rename_labels(sub_tf_plot, key2desc, max_len=max_len)
 
         n = len(subset_phenos)
-        figsize = max(8, n * 0.55)
+        figsize = max(10, n * 0.6)
         fig_tf, ax_tf = plt.subplots(figsize=(figsize, figsize))
+
+        # Scale font sizes to matrix dimension
+        if n <= 20:
+            tick_sz, title_sz, cbar_label_sz, cbar_tick_sz = 12, 16, 14, 11
+        elif n <= 40:
+            tick_sz, title_sz, cbar_label_sz, cbar_tick_sz = 11, 15, 13, 10
+        else:
+            tick_sz, title_sz, cbar_label_sz, cbar_tick_sz = 9, 14, 12, 9
+
+        cbar_shrink = min(0.5, 15.0 / figsize)  # shorter bar on big plots
+
         sns.heatmap(sub_tf_named, cmap=cmap, square=True,
                     vmin=0, vmax=vmax_tf,
                     xticklabels=True, yticklabels=True, ax=ax_tf,
                     linewidths=0.15, linecolor='white',
-                    cbar_kws={'shrink': 0.5, 'aspect': 25, 'pad': 0.02,
+                    cbar_kws={'shrink': cbar_shrink, 'aspect': 25, 'pad': 0.02,
                               'label': '$-\\log_{10}$(p-value)'})
+        cbar = ax_tf.collections[0].colorbar
+        cbar.ax.tick_params(labelsize=cbar_tick_sz)
+        cbar.set_label('$-\\log_{10}$(p-value)', fontsize=cbar_label_sz)
+
         ax_tf.set_title(f'Cross-trait enrichment ({trait_filter.capitalize()}, '
-                        f'n={n})', fontweight='bold', pad=12)
-        tick_size = 11 if n <= 30 else 9
-        ax_tf.tick_params(axis='x', labelsize=tick_size, rotation=90)
-        ax_tf.tick_params(axis='y', labelsize=tick_size)
+                        f'n={n})', fontweight='bold', pad=12,
+                        fontsize=title_sz)
+        ax_tf.tick_params(axis='x', labelsize=tick_sz, rotation=90)
+        ax_tf.tick_params(axis='y', labelsize=tick_sz)
 
         save_fig(fig_tf, args.out_dir,
                  f'SuppFig_heatmap_{trait_filter}', dpi=200)
