@@ -44,7 +44,7 @@ def create_universe(snp2chrom_pos: Dict[str, Tuple],
     """
     try:
         with open(tmp_file, 'w', newline='') as bed_file:  # Here we write to new file
-            bed_writer = csv.writer(bed_file, delimiter='\t')
+            bed_writer = csv.writer(bed_file, delimiter='\t', lineterminator='\n')
             for cur_id, (snp, (chrom, pos)) in tqdm(enumerate(snp2chrom_pos.items())):
                 start = max(0, int(pos) - interval)
                 end = int(pos) + interval
@@ -52,7 +52,8 @@ def create_universe(snp2chrom_pos: Dict[str, Tuple],
                 bed_row = [chrom, start, end, cur_id]
                 bed_writer.writerow(bed_row)
         log_message("Sorting Universe...")
-        ret = subprocess.call(f"sort -k1,1 -k2,2n {tmp_file} > {universe_out}", shell=True)
+        with open(universe_out, 'w') as outf:
+            ret = subprocess.call(['sort', '-k1,1', '-k2,2n', tmp_file], stdout=outf)
         if ret != 0:
             raise RuntimeError(f"Sorting failed with exit code {ret}")
     except Exception as e:
@@ -161,12 +162,6 @@ if __name__ == '__main__':
         if not os.path.isfile(gmt):
             log_message(f"GMT file {gmt} does not exist!", msg_type="ERROR")
             sys.exit(1)
-        # Validate GMT format (at least 3 columns per row)
-        with open(gmt, 'r') as gmtf:
-            for i, row in enumerate(gmtf):
-                if len(row.strip().split('\t')) < 3:
-                    log_message(f"Row {i+1} in GMT file {gmt} does not have at least 3 columns!", msg_type="ERROR")
-                    sys.exit(1)
         set2features = read_gmt(gmt)
     else:
         feature_dir = args.feature_files_dir

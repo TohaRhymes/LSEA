@@ -1,0 +1,28 @@
+docs/
+.env
+
+# Python
+__pycache__/
+*.pyc
+
+# IDE
+.idea/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Node.js
+node_modules/
+
+# R generated plots
+Rplots.pdf
+
+# Result data files (keep READMEs only)
+tests/results/**/*.csv
+tests/results/**/*.tsv
+
+# Case study results (local-only, not for GitHub)
+tests/results/case_study_o15/
+
+# Article figures (generated, not for GitHub)
+tests/results/article_figures/

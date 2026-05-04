@@ -55,9 +55,14 @@ def get_overlapping_features(path_to_bed: str,
     """
     feature2intervals = defaultdict(list)  # Gene -> interval id
     try:
-        ret = subprocess.call(
-            f"bedtools intersect -a \"{path_to_bed}\" -b \"{path_to_gene_file}\" -wo | perl -p -e 's/\r//g' > \"{intersect_file}\"",
-            shell=True)   # todo (??) сделать пресорт sort -k1,1 -k2,2n и -sorted
+        with open(intersect_file, 'w') as outf:
+            bedtools_proc = subprocess.Popen(
+                ['bedtools', 'intersect', '-a', path_to_bed, '-b', path_to_gene_file, '-wo'],
+                stdout=subprocess.PIPE)
+            # Strip \r characters (replaces perl -p -e 's/\r//g')
+            for line in bedtools_proc.stdout:
+                outf.write(line.decode().replace('\r', ''))
+            ret = bedtools_proc.wait()
         if ret != 0:
             raise RuntimeError(f"BEDTools intersect failed with exit code {ret}")
         with open(intersect_file, 'r', newline='') as inter:  # The results of clumping (SNPs sets)
@@ -128,18 +133,21 @@ def read_gmt(path: str) -> Dict[str, List]:
     :param path: Path to GMT file.
     :return: Dict {set_name: list_of_features (e.g. genes)}
     :raises: FileNotFoundError if the file does not exist.
-    :raises: ValueError if any row does not have at least 3 columns.
     """
     set2features = dict()
+    skipped = 0
     if not os.path.isfile(path):
         raise FileNotFoundError(f"GMT file {path} not found.")
     with open(path, 'r', newline='') as db:
         gmt_reader = csv.reader(db, delimiter='\t')
         for i, row in enumerate(tqdm(gmt_reader)):
-            if len(row) < 3:
-                raise ValueError(f"Row {i+1} in GMT file {path} does not have at least 3 columns (gene set, id/link, features (genes))!")
+            if len(row) < 3 or all(x.strip() == '' for x in row[2:]):
+                skipped += 1
+                continue
             gene_set = row[0]
-            set2features[gene_set] = row[2:]
+            set2features[gene_set] = [x for x in row[2:] if x.strip()]
+    if skipped > 0:
+        print(f"WARNING: Skipped {skipped} rows with no genes in GMT file {path}")
     return set2features
 
 

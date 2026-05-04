@@ -44,7 +44,7 @@ def run_plink_clumping(plink_path: str,
     out_plink = os.path.join(out_name,
                              get_filename_without_extension(tsv_file))
     with open(tsv_plink, 'w', newline='') as csvfile:
-        tsv_writer = csv.writer(csvfile, delimiter='\t')
+        tsv_writer = csv.writer(csvfile, delimiter='\t', lineterminator='\n')
         header = ["SNP", "Chr", "Pos", "P"]
         tsv_writer.writerow(header)
         for snp, values in input_dict.items():
@@ -57,21 +57,24 @@ def run_plink_clumping(plink_path: str,
     # index SNP (default 250kb) and that are in linkage disequilibrium with the index SNP,
     # based on an r-squared threshold (default 0.50). These SNPs are then subsetted based on the result for that SNP,
     # as illustrated below. This is a greedy algorithm and so each SNP will only appear in a single clump, if at all.
-    subprocess.call(
-        f'{os.path.join(plink_path, "plink")} '
-        f'--bfile \"{bfile_path}\" '
-        f'--clump \"{tsv_plink}\" '
-        f'--clump-field P '
-        f'--clump-p1 {p1} '  # Significance threshold for index SNPs
-        f'--clump-p2 {p2} '  # Secondary significance threshold for clumped SNPs
-        f'--clump-r2 {r2} '  # LD threshold for clumping
-        f'--clump-kb {kb} '  # Physical distance threshold for clumping
-        f'--clump-snp-field SNP '
-        f'--out \"{out_plink}\" '
-        f'--allow-no-sex '
-        f'--allow-extra-chr '
-        f'2> \"{out_name}/PLINK_clumping.log\"',
-        shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    plink_log_path = os.path.join(out_name, "PLINK_clumping.log")
+    with open(plink_log_path, 'w') as plink_log:
+        ret = subprocess.call(
+            [os.path.join(plink_path, "plink"),
+             '--bfile', bfile_path,
+             '--clump', tsv_plink,
+             '--clump-field', 'P',
+             '--clump-p1', str(p1),
+             '--clump-p2', str(p2),
+             '--clump-r2', str(r2),
+             '--clump-kb', str(kb),
+             '--clump-snp-field', 'SNP',
+             '--out', out_plink,
+             '--allow-no-sex',
+             '--allow-extra-chr'],
+            stdout=subprocess.DEVNULL, stderr=plink_log)
+    if ret != 0:
+        log_message(f"PLINK clumping failed with exit code {ret}. Check log: {plink_log_path}", msg_type="WARN")
     return out_plink + ".clumped"
 
 
@@ -103,7 +106,7 @@ def get_snp_info_from_tsv(tsv_file: str, names: List[str]) -> Dict[str, List[str
                                                       snp_info_row[pos_index],
                                                       snp_info_row[p_index]]
             except IndexError:
-                raise IndexError(f"Error in string: {snp_info_row}. It s")
+                raise IndexError(f"Error in string: {snp_info_row}. It seems to be malformed — check that all required columns are present.")
     return dict(input_dict)
 
 
@@ -123,7 +126,7 @@ def make_bed_file(clumped_file, interval, out_name, output_merged_file):
     merged_fixed_size_file = os.path.join(out_name, "merged_fixed_size.bed")
     # Parse the .clumped file and extract lead SNPs, writing intervals around them to a BED file
     with open(clumps_file, 'w', newline='') as bed_file:  # Here we write to new file
-        clumps_writer = csv.writer(bed_file, delimiter='\t')
+        clumps_writer = csv.writer(bed_file, delimiter='\t', lineterminator='\n')
         with open(clumped_file, 'r') as cl_file:  # Our result of clumping (SNPs sets)
             clumped_reader = csv.reader(cl_file, delimiter='\t')
             for clump_info in clumped_reader:
@@ -132,8 +135,11 @@ def make_bed_file(clumped_file, interval, out_name, output_merged_file):
                     # todo what to do with None ??
                     # Remove empty fields and split by spaces
                     clump_info = list(filter(lambda x: len(x) != 0 and x != " ", clump_info[0].split(" ")))
-                    # Skip header or malformed lines
-                    if len(clump_info) < 4 or clump_info[0].lower() == "chr":
+                    # Skip header line
+                    if clump_info[0].lower() == "chr":
+                        continue
+                    # Skip malformed lines
+                    if len(clump_info) < 4:
                         log_message(f"Skipping malformed line in PLINK .clumped file: {clump_info}")
                         continue
                     # clump_info[0]: chromosome, clump_info[3]: position (lead SNP)
@@ -142,11 +148,15 @@ def make_bed_file(clumped_file, interval, out_name, output_merged_file):
                     bed_row = [clump_info[0], max(int(clump_info[3]) - interval, 0), int(clump_info[3]) + interval]
                     clumps_writer.writerow(bed_row)
     # Sort the BED file by chromosome and start position
-    subprocess.call(
-        f"bedtools sort -i \"{clumps_file}\" > \"{sorted_file}\"", shell=True)
+    with open(sorted_file, 'w') as outf:
+        ret = subprocess.call(['bedtools', 'sort', '-i', clumps_file], stdout=outf)
+    if ret != 0:
+        raise RuntimeError(f"bedtools sort failed with exit code {ret}")
     # Merge overlapping intervals to avoid double-counting loci
-    subprocess.call(
-        f"bedtools merge -i \"{sorted_file}\" > \"{merged_file}\"", shell=True)
+    with open(merged_file, 'w') as outf:
+        ret = subprocess.call(['bedtools', 'merge', '-i', sorted_file], stdout=outf)
+    if ret != 0:
+        raise RuntimeError(f"bedtools merge failed with exit code {ret}")
     # Re-center merged intervals to fixed size around the midpoint
     with open(merged_fixed_size_file, 'w', newline='') as bed_file:  # Here we write to new file
         fixed_merged_writer = csv.writer(bed_file, delimiter='\t', lineterminator='\n')
@@ -158,9 +168,9 @@ def make_bed_file(clumped_file, interval, out_name, output_merged_file):
                 new_row = [row[0], max(middle_point - interval, 0), middle_point + interval]
                 fixed_merged_writer.writerow(new_row)
     # Add unique line numbers to each interval (for downstream tracking)
-    subprocess.call(
-        "awk {'print $0\"\t\"FNR'}" + f" \"{merged_fixed_size_file}\" > \"{output_merged_file}\"",
-        shell=True)
+    with open(merged_fixed_size_file, 'r') as infile, open(output_merged_file, 'w') as outfile:
+        for line_num, line in enumerate(infile, start=1):
+            outfile.write(f"{line.rstrip()}\t{line_num}\n")
 
 
 def p_val_for_gene_set(n_big,
@@ -176,7 +186,6 @@ def p_val_for_gene_set(n_big,
     :param k: Number of significant intervals overlapping the gene set (k).
     :return: Hypergeometric p-value (float).
     """
-    log_message(f"Args of dist: {k - 1, n_big, k_big, n}")
     return hypergeom.sf(k - 1, n_big, k_big, n)
 
 
@@ -239,18 +248,18 @@ if __name__ == '__main__':
                         required=False,
                         default='lsea_result')
     parser.add_argument('--clump_p1',
-                        '-с_p',  # was: -p
-                        help='p-value cutoff to be used when identifying associated loci '
+                        '-c_p',  # was: -p
+                        help='p-value cutoff(s) to be used when identifying associated loci '
                              '(corresponds to `--clump-p1` flag in PLINK). '
-                             'If not specified, optimal cutoff will be estimated using a regression model '
-                             '(from default: 1e-5 and 5e-8).',  # todo CHECKKK THIS IS TRUE?
+                             'Multiple cutoffs can be specified separated by space '
+                             '(default: 1e-5 5e-8).',
                         metavar='float',
                         type=float,
                         nargs='+',
                         required=False,
-                        default=['1e-5', '5e-8'])
+                        default=[1e-5, 5e-8])
     parser.add_argument('--clump_p2',
-                        '-с_p2',
+                        '-c_p2',
                         help='Secondary significance threshold for clumped SNPs '
                              '(corresponds to `--clump-p2` flag in PLINK). '
                              'Default: 0.01.',
@@ -259,7 +268,7 @@ if __name__ == '__main__':
                         required=False,
                         default=0.01)
     parser.add_argument('--clump_r2',
-                        '-с_r2',
+                        '-c_r2',
                         help='LD threshold for clumping '
                              '(corresponds to `--clump-r2` flag in PLINK). '
                              'Default: 0.1',
@@ -268,7 +277,7 @@ if __name__ == '__main__':
                         required=False,
                         default=0.1)
     parser.add_argument('--clump_kb',
-                        '-с_kb',
+                        '-c_kb',
                         help='Physical distance threshold for clumping '
                              '(corresponds to `--clump-kb` flag in PLINK). '
                              'Default: 500.',
@@ -291,7 +300,7 @@ if __name__ == '__main__':
                         required=False)
     parser.add_argument('--qval_threshold',
                         '-qt',  # was: -qval_threshold
-                        help='Q-value threshold for output (default: 0.1)',
+                        help='Q-value threshold for output (default: 0.05)',
                         metavar='float',
                         type=float,
                         required=False,
@@ -299,7 +308,7 @@ if __name__ == '__main__':
     parser.add_argument('--interval_count_threshold',
                         '-ict',
                         help='Minimum number of intervals (loci) a gene set must overlap to be reported (default: 3).',
-                        metavar='float',
+                        metavar='int',
                         type=int,
                         required=False,
                         default=3)
@@ -331,9 +340,11 @@ if __name__ == '__main__':
     # Prepare input and output paths
     tsv_file = args.input
     path_to_plink_dir = args.plink_dir
-    if path_to_plink_dir is not None:
-        path_to_plink_dir = os.path.normpath(path_to_plink_dir)
     path_to_bfile = args.bfile
+    if path_to_plink_dir is None or path_to_bfile is None:
+        log_message("Both --plink_dir and --bfile are required for LSEA analysis.", msg_type="ERROR")
+        parser.error("Both --plink_dir and --bfile are required.")
+    path_to_plink_dir = os.path.normpath(path_to_plink_dir)
     qval_thresh = args.qval_threshold
     interval_thresh = args.interval_count_threshold
     col_names = args.column_names
@@ -355,14 +366,18 @@ if __name__ == '__main__':
     for universe_file in json_files:
         universe_name = os.path.basename(universe_file).replace('.json', '')
         log_message(f'Processing universe: {universe_name}')
-        universe = json.load(open(universe_file, "r"))
+        with open(universe_file, "r") as uf:
+            universe = json.load(uf)
         interval = universe["interval"]
         # Write features.bed for intersection (removes 'chr' prefix for consistency)
         features_bed_path = os.path.join(out_name, 'features.bed')
         with open(features_bed_path, 'w') as feature_file:
             for feature in universe["features"]:
-                bed_line = '\t'.join(universe["features"][feature])
-                bed_line = bed_line.replace('chr', '')
+                fields = universe["features"][feature]
+                # Only strip 'chr' prefix from the chromosome field (first column)
+                if fields[0].startswith('chr'):
+                    fields = [fields[0][3:]] + fields[1:]
+                bed_line = '\t'.join(fields)
                 feature_file.write(f'{bed_line}\n')
         interval_counts_for_universe = universe["interval_counts"]
         log_message(
@@ -383,7 +398,7 @@ if __name__ == '__main__':
             sorted_file = os.path.join(out_name, "clumps_sorted.bed")
             merged_file = os.path.join(out_name, "merged.bed")
             merged_fixed_size_file = os.path.join(out_name, "merged_fixed_size.bed")
-            temp_files.update([features_file, inter_file, clumps_file, sorted_file, merged_file, merged_fixed_size_file, output_merged_file])
+            temp_files.update([features_file, clumps_file, sorted_file, merged_file, merged_fixed_size_file, output_merged_file])
 
             log_message(f'Calculating enrichment with p-value cutoff = {p_cutoff}')
             # Run PLINK clumping to identify independent loci
@@ -396,6 +411,19 @@ if __name__ == '__main__':
                                               r2=r2,
                                               kb=kb,
                                               out_name=out_name)
+            # Track PLINK intermediate files for cleanup
+            plink_base = clumped_file.replace(".clumped", "")
+            plink_input = os.path.join(out_name, f'{get_filename_without_extension(tsv_file)}_for_plink.tsv')
+            plink_log = os.path.join(out_name, "PLINK_clumping.log")
+            temp_files.update([clumped_file, plink_input, plink_log,
+                               plink_base + ".log", plink_base + ".nosex"])
+
+            # If PLINK found no significant SNPs, .clumped file won't exist
+            if not os.path.isfile(clumped_file):
+                log_message(f"No significant SNPs found (no .clumped file). Skipping enrichment for p={p_cutoff}.",
+                            msg_type="WARN")
+                stats_rows.append([p_cutoff, 0, 0, 0, 0, 1])
+                continue
 
             # Build, merge, and re-center intervals around lead SNPs
             make_bed_file(clumped_file=clumped_file,
@@ -432,7 +460,7 @@ if __name__ == '__main__':
                 feature_names = defaultdict(set)
                 hit_count = 0
                 min_qval = 1
-                result_writer = csv.writer(file, delimiter='\t')
+                result_writer = csv.writer(file, delimiter='\t', lineterminator='\n')
                 result_writer.writerow(
                     ["gene_set", "overlapping_loci", "p_value", "q_value", "significance", "description"])
                 for i, w in enumerate(
@@ -464,7 +492,7 @@ if __name__ == '__main__':
 
         # Write summary statistics for this universe
         with open(os.path.join(out_name, f"annotation_stats_{universe_name}.tsv"), 'w', newline='') as stats_file:
-            stats_writer = csv.writer(stats_file, delimiter='\t')
+            stats_writer = csv.writer(stats_file, delimiter='\t', lineterminator='\n')
             stats_header = ['p_cutoff',
                             'num_loci',
                             'annotated_loci',

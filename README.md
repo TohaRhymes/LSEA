@@ -7,7 +7,7 @@
 ## Prerequisites
 
 - **PLINK** v1.9+
-- **BEDTools** ≥3.11.5
+- **BEDTools** v2.30+
 - **Python** (tested on 3.11): see `requirements.txt`
 
 Install Python dependencies:
@@ -36,25 +36,25 @@ There are two main modes:
 #### **A. Using a single BED + GMT file**
 ```bash
 python3 universe_generator.py \
-    -variants ./data/positions.tsv \
-    -features ./data/gencode_formatted.bed ./data/c2.all.v7.0.symbols.gmt \
-    -interval 100000 \
-    -o ./data/universe.json
+    -v ./tests/data/positions.tsv \
+    -ft ./tests/data/gencode_formatted.bed ./tests/data/c2.all.v7.0.symbols.gmt \
+    -i 100000 \
+    -o ./tests/data/universe.json
 ```
-- `-variants`: TSV file with at least three columns: chromosome, position, and variant ID (must be unique).
-- `-features`: BED file with all features and GMT file with gene set definitions.
-- `-interval`: Window size (bp) around each variant (default: 500000).
-- `-o`: Output JSON file.
+- `-v`/`--variants`: TSV file with at least three columns: chromosome, position, and variant ID (must be unique).
+- `-ft`/`--features`: BED file with all features and GMT file with gene set definitions.
+- `-i`/`--interval`: Window size (bp) around each variant (default: 500000).
+- `-o`/`--out_json`: Output JSON file.
 
 #### **B. Using a directory of per-set BED files**
 ```bash
 python3 universe_generator.py \
-    -variants ./data/positions.tsv \
-    -feature_files_dir ./data/bed_sets/ \
-    -interval 100000 \
-    -o ./data/universe_dir.json
+    -v ./tests/data/positions.tsv \
+    -ffdir ./tests/data/bed_sets/ \
+    -i 100000 \
+    -o ./tests/data/universe_dir.json
 ```
-- `-feature_files_dir`: Directory with one BED file per feature set.
+- `-ffdir`/`--feature_files_dir`: Directory with one BED file per feature set.
 
 **Additional options:**
 - `-vc`/`--variants_colnames`: Specify column names for the variants file (default: chr pos id).
@@ -73,8 +73,8 @@ Once you have a universe file, you can run LSEA on your GWAS summary statistics:
 
 ```bash
 python3 LSEA_2.4.py \
-    --input ./data/in.tsv \
-    --universe ./data/universe.json \
+    --input ./tests/data/in.tsv \
+    --universe ./tests/data/universe.json \
     --plink_dir <plink_folder_path> \
     --bfile <plink_prefix> \
     --out ./results_lsea
@@ -87,9 +87,9 @@ python3 LSEA_2.4.py \
 - `--bfile`/`-bf`: Prefix for PLINK binary genotype files (bed/bim/fam).
 - `--out`/`-o`: Output directory (default: lsea_result).
 - `--column_names`/`-cols`: Specify column names for input TSV (default: chr pos id p).
-- `--clump_p1`/`-с_p`: List of p-value cutoffs for clumping (default: 1e-5 5e-8).
+- `--clump_p1`/`-c_p`: List of p-value cutoffs for clumping (default: 1e-5 5e-8).
 - `--clump_p2`, `--clump_r2`, `--clump_kb`: Advanced PLINK clumping parameters.
-- `--qval_threshold`/`-qt`: Q-value threshold for reporting (default: 0.05).
+- `--qval_threshold`/`-qt`: Q-value threshold for reporting (default: 0.05; set to 1.0 combined with `--print_all` to see everything).
 - `--interval_count_threshold`/`-ict`: Minimum number of intervals (loci) a gene set must overlap to be reported (default: 3).
 - `--print_all`/`-a`: Output all results, not just significant ones.
 - `--keep_temp`/`-tmp`: If set, keep intermediate files (mostly for debugging). By default, intermediate files are deleted.
@@ -104,7 +104,7 @@ python3 LSEA_2.4.py --help
 ## Output
 
 - All results are written to the output directory (default: `lsea_result`).
-- For each universe and p-value cutoff (by defaul, LSEA use two p-value cutoffs (`1e-05, 5e-08`); if you want to test more cutoffs, specify them using the `--clump_p1` option sepeated by space), you get:
+- For each universe and p-value cutoff (by default, LSEA uses two p-value cutoffs (`1e-05, 5e-08`); if you want to test more cutoffs, specify them using the `--clump_p1` option separated by space), you get:
   - `*_result_<cutoff>.tsv`: Enrichment results for each gene set.
   - `annotation_stats_<universe>.tsv`: Summary statistics for each run.
 - Log messages and warnings are printed to the console for transparency and debugging.
@@ -123,12 +123,12 @@ python3 LSEA_2.4.py --help
 
 1. **Generate universe:**
    ```bash
-   python3 universe_generator.py -variants ./data/positions.tsv -features ./data/gencode_formatted.bed ./data/c2.all.v7.0.symbols.gmt -interval 100000 -o ./data/universe.json
+   python3 universe_generator.py -v ./tests/data/positions.tsv -ft ./tests/data/gencode_formatted.bed ./tests/data/c2.all.v7.0.symbols.gmt -i 100000 -o ./tests/data/universe.json
    ```
 
 2. **Run LSEA:**
    ```bash
-   python3 LSEA_2.4.py --input ./data/in.tsv --universe ./data/universe.json --plink_dir /path/to/plink --bfile /path/to/genotypes --out ./results_lsea
+   python3 LSEA_2.4.py --input ./tests/data/in.tsv --universe ./tests/data/universe.json --plink_dir /path/to/plink --bfile /path/to/genotypes --out ./results_lsea
    ```
 
 ---
